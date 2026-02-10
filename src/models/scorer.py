@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -12,9 +11,9 @@ from src.models.normalization import ScoreNormalizer
 @dataclass
 class ModelScorer:
     model_type: str
-    enabled_features: List[str]
+    enabled_features: list[str]
     warmup_events: int
-    iforest_params: Dict[str, float | int]
+    iforest_params: dict[str, float | int]
 
     def __post_init__(self) -> None:
         if self.model_type == "isolation_forest":
@@ -29,14 +28,14 @@ class ModelScorer:
             raise ValueError(f"Unknown model type: {self.model_type}")
 
         self.normalizer = ScoreNormalizer()
-        self._warm_X: List[np.ndarray] = []
+        self._warm_X: list[np.ndarray] = []
         self._ready = False
 
     @property
     def ready(self) -> bool:
         return self._ready
 
-    def _vec(self, feats: Dict[str, float]) -> np.ndarray:
+    def _vec(self, feats: dict[str, float]) -> np.ndarray:
         arr = np.array([float(feats[k]) for k in self.enabled_features], dtype=float)
 
         # Guardrail: sklearn can't handle inf/nan and can choke on huge magnitudes
@@ -44,7 +43,7 @@ class ModelScorer:
         arr = np.clip(arr, -1e6, 1e6)
         return arr
 
-    def warmup_update(self, feats: Dict[str, float]) -> None:
+    def warmup_update(self, feats: dict[str, float]) -> None:
         if self._ready:
             return
         self._warm_X.append(self._vec(feats))
@@ -61,7 +60,7 @@ class ModelScorer:
             self._ready = True
             self._warm_X.clear()
 
-    def score(self, feats: Dict[str, float]) -> Tuple[float, float]:
+    def score(self, feats: dict[str, float]) -> tuple[float, float]:
         """Return (normalized_score, raw_score_anomaly_like)."""
         x = self._vec(feats).reshape(1, -1)
         raw = self.model.score(x).reshape(-1)

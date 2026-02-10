@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
 
 from src.feature_engineering.window_store import EntityWindowStore
 from src.schemas.event_schema import Event
@@ -10,9 +9,9 @@ from src.schemas.event_schema import Event
 @dataclass
 class Featurizer:
     store: EntityWindowStore
-    enabled_features: List[str]
+    enabled_features: list[str]
 
-    def ingest_and_featurize(self, e: Event) -> Dict[str, float]:
+    def ingest_and_featurize(self, e: Event) -> dict[str, float]:
         # Streaming-safe: update state first, then compute using *prior* (see store implementation)
         self.store.add(e)
         feats = self.store.compute_features(e)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from river.drift import ADWIN
 
@@ -11,7 +10,7 @@ class ADWINDetector:
     """Streaming drift detector over a scalar stream (e.g., mean score)."""
 
     delta: float
-    _d: Optional[ADWIN] = None
+    _d: ADWIN | None = None
     detected: bool = False
 
     def __post_init__(self) -> None:

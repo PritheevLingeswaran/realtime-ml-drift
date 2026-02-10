@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Protocol
+from typing import Protocol
 
 import numpy as np
 from sklearn.ensemble import IsolationForest

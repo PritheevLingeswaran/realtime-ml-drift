@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -19,4 +19,4 @@ class Event(BaseModel):
     device_type: Literal["ios", "android", "desktop", "unknown"] = "unknown"
 
     # Optional: used by generator/eval to know ground-truth drift intervals
-    drift_tag: Optional[str] = Field(default=None, description="Generator label for evaluation only")
+    drift_tag: str | None = Field(default=None, description="Generator label for evaluation only")

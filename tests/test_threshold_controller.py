@@ -17,14 +17,14 @@ def test_guardrails_max_step_and_bounds() -> None:
     ts = 1000.0
 
     # Feed scores that would propose a much lower threshold
-    for i in range(500):
+    for _i in range(500):
         ts += 1.0
         tc.update(score=0.2, ts=ts, drift_active=False)
     # Max step should limit change
     assert tc.threshold >= 0.9 - 0.02
 
     # Force proposed above max threshold
-    for i in range(500):
+    for _i in range(500):
         ts += 1.0
         tc.update(score=1.0, ts=ts, drift_active=False)
     assert tc.threshold <= cfg.max_threshold

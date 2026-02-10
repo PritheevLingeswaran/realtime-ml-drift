@@ -1,21 +1,19 @@
 from __future__ import annotations
 
-import asyncio
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
-import numpy as np
 
 from src.drift.adaptation import AdaptationConfig, ThresholdController
 from src.drift.monitor import DriftConfig, DriftMonitor
 from src.feature_engineering.featurizer import Featurizer
 from src.feature_engineering.window_store import EntityWindowStore, WindowConfig
 from src.models.scorer import ModelScorer
+from src.monitoring import metrics as m
 from src.monitoring.alerts import AlertStore
 from src.monitoring.logger import configure_logging
-from src.monitoring import metrics as m
 from src.schemas.alert_schema import Alert
 from src.schemas.event_schema import Event
 from src.utils.config import load_config
@@ -26,7 +24,7 @@ from src.utils.ids import stable_id
 class ServiceState:
     """Holds mutable runtime state for API and stream processor."""
 
-    config: Dict[str, Any]
+    config: dict[str, Any]
     featurizer: Featurizer
     scorer: ModelScorer
     drift: DriftMonitor
@@ -35,7 +33,7 @@ class ServiceState:
     logger: structlog.BoundLogger
 
 
-def build_state(config_path: Optional[str]) -> ServiceState:
+def build_state(config_path: str | None) -> ServiceState:
     cfg = load_config(config_path).raw
 
     configure_logging(level=str(cfg["monitoring"]["log_level"]))
@@ -43,10 +41,12 @@ def build_state(config_path: Optional[str]) -> ServiceState:
 
     # Featurizer
     fcfg = cfg["feature_engineering"]
-    store = EntityWindowStore(WindowConfig(
-        window_seconds=int(fcfg["window_seconds"]),
-        max_events_per_entity=int(fcfg["max_events_per_entity"]),
-    ))
+    store = EntityWindowStore(
+        WindowConfig(
+            window_seconds=int(fcfg["window_seconds"]),
+            max_events_per_entity=int(fcfg["max_events_per_entity"]),
+        )
+    )
     featurizer = Featurizer(store=store, enabled_features=list(fcfg["features"]))
 
     # Model scorer
@@ -77,15 +77,17 @@ def build_state(config_path: Optional[str]) -> ServiceState:
 
     # Threshold controller
     acfg = cfg["adaptation"]
-    threshold = ThresholdController(AdaptationConfig(
-        enabled=bool(acfg["enabled"]),
-        target_anomaly_rate=float(acfg["target_anomaly_rate"]),
-        initial_threshold=float(acfg["initial_threshold"]),
-        min_threshold=float(acfg["min_threshold"]),
-        max_threshold=float(acfg["max_threshold"]),
-        max_step=float(acfg["max_step"]),
-        cooldown_seconds=int(acfg["cooldown_seconds"]),
-    ))
+    threshold = ThresholdController(
+        AdaptationConfig(
+            enabled=bool(acfg["enabled"]),
+            target_anomaly_rate=float(acfg["target_anomaly_rate"]),
+            initial_threshold=float(acfg["initial_threshold"]),
+            min_threshold=float(acfg["min_threshold"]),
+            max_threshold=float(acfg["max_threshold"]),
+            max_step=float(acfg["max_step"]),
+            cooldown_seconds=int(acfg["cooldown_seconds"]),
+        )
+    )
 
     # Alerts
     sink = os.path.join("data", "processed", "snapshots", "alerts.jsonl")
@@ -114,7 +116,7 @@ def _severity(score: float, threshold: float) -> str:
     return "low"
 
 
-async def process_event(state: ServiceState, e: Event, source: str = "stream") -> Dict[str, Any]:
+async def process_event(state: ServiceState, e: Event, source: str = "stream") -> dict[str, Any]:
     """Single-event pipeline. Used by both stream runner and API /score."""
     m.EVENTS_INGESTED.labels(source=source).inc()
     with m.FEATURE_LATENCY.time():
@@ -150,7 +152,11 @@ async def process_event(state: ServiceState, e: Event, source: str = "stream") -
             severity=sev,  # type: ignore[arg-type]
             reason="score>=threshold",
             drift_state=drift_state.to_dict(),
-            metadata={"merchant_category": e.merchant_category, "country": e.country, "channel": e.channel},
+            metadata={
+                "merchant_category": e.merchant_category,
+                "country": e.country,
+                "channel": e.channel,
+            },
         )
         state.alerts.add(alert)
         m.ALERTS_EMITTED.labels(severity=sev).inc()
@@ -165,7 +171,7 @@ async def process_event(state: ServiceState, e: Event, source: str = "stream") -
     }
 
 
-async def run_stream_processor(config_path: Optional[str] = None) -> None:
+async def run_stream_processor(config_path: str | None = None) -> None:
     from src.streaming.sources import DriftScenario, JSONLReplaySource, SyntheticTransactionSource
 
     state = build_state(config_path=config_path)
@@ -187,7 +193,9 @@ async def run_stream_processor(config_path: Optional[str] = None) -> None:
             drift=drift,
         )
     elif scfg["source"] == "replay":
-        src = JSONLReplaySource(path=str(scfg["replay_path"]), speedup=20.0 if cfg["app"]["env"] == "dev" else 1.0)
+        src = JSONLReplaySource(
+            path=str(scfg["replay_path"]), speedup=20.0 if cfg["app"]["env"] == "dev" else 1.0
+        )
     else:
         raise ValueError(f"Unknown streaming source: {scfg['source']}")
 

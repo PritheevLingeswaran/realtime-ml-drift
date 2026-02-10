@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Deque, Optional
 from collections import deque
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -31,7 +30,7 @@ class ThresholdController:
     def __init__(self, cfg: AdaptationConfig, window_size: int = 2000) -> None:
         self.cfg = cfg
         self.threshold = float(cfg.initial_threshold)
-        self._scores: Deque[float] = deque(maxlen=window_size)
+        self._scores: deque[float] = deque(maxlen=window_size)
         self._last_change_ts: float = 0.0
 
     def update(self, score: float, ts: float, drift_active: bool) -> float:

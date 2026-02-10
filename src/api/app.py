@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
-import structlog
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
@@ -14,7 +12,7 @@ from src.schemas.event_schema import Event
 from src.streaming.runner import ServiceState, build_state, process_event
 
 
-def create_app(config_path: Optional[str] = None) -> FastAPI:
+def create_app(config_path: str | None = None) -> FastAPI:
     state = build_state(config_path=config_path)
 
     app = FastAPI(
@@ -86,7 +84,9 @@ async def _bg_stream(state: ServiceState) -> None:
             drift=drift,
         )
     else:
-        src = JSONLReplaySource(path=str(scfg["replay_path"]), speedup=20.0 if cfg["app"]["env"] == "dev" else 1.0)
+        src = JSONLReplaySource(
+            path=str(scfg["replay_path"]), speedup=20.0 if cfg["app"]["env"] == "dev" else 1.0
+        )
 
     state.logger.info("bg_stream_loop", source=scfg["source"])
     async for e in src.stream():
@@ -96,7 +96,7 @@ async def _bg_stream(state: ServiceState) -> None:
             state.logger.error("bg_stream_error", error=str(ex), event_id=e.event_id)
 
 
-def run_api(config_path: Optional[str] = None) -> None:
+def run_api(config_path: str | None = None) -> None:
     app = create_app(config_path=config_path)
     state: ServiceState = app.state.service  # type: ignore[attr-defined]
     host = str(state.config["api"]["host"])

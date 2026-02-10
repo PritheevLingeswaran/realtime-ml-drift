@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -26,16 +26,14 @@ class DriftConfig:
 class DriftState:
     drift_active: bool = False
     last_update_ts: float = 0.0
-    feature_stats: Dict[str, List[DriftStat]] = field(default_factory=dict)
-    score_stats: List[DriftStat] = field(default_factory=list)
+    feature_stats: dict[str, list[DriftStat]] = field(default_factory=dict)
+    score_stats: list[DriftStat] = field(default_factory=list)
     adwin_detected: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "drift_active": self.drift_active,
-            "feature_stats": {
-                k: [s.__dict__ for s in v] for k, v in self.feature_stats.items()
-            },
+            "feature_stats": {k: [s.__dict__ for s in v] for k, v in self.feature_stats.items()},
             "score_stats": [s.__dict__ for s in self.score_stats],
             "adwin_detected": self.adwin_detected,
         }
@@ -50,13 +48,13 @@ class DriftMonitor:
     - Multiple detectors are ensemble-like signals, not ground truth.
     """
 
-    def __init__(self, cfg: DriftConfig, feature_names: List[str]) -> None:
+    def __init__(self, cfg: DriftConfig, feature_names: list[str]) -> None:
         self.cfg = cfg
         self.feature_names = feature_names
-        self._ref_feats: Dict[str, List[float]] = {k: [] for k in feature_names}
-        self._cur_feats: Dict[str, List[float]] = {k: [] for k in feature_names}
-        self._ref_scores: List[float] = []
-        self._cur_scores: List[float] = []
+        self._ref_feats: dict[str, list[float]] = {k: [] for k in feature_names}
+        self._cur_feats: dict[str, list[float]] = {k: [] for k in feature_names}
+        self._ref_scores: list[float] = []
+        self._cur_scores: list[float] = []
         self._state = DriftState()
         self._adwin = ADWINDetector(delta=cfg.adwin_delta) if cfg.adwin_enabled else None
 
@@ -64,7 +62,7 @@ class DriftMonitor:
     def state(self) -> DriftState:
         return self._state
 
-    def update(self, feats: Dict[str, float], score: float, ts: float) -> DriftState:
+    def update(self, feats: dict[str, float], score: float, ts: float) -> DriftState:
         # Fill reference first (cold start)
         if len(self._ref_scores) < self.cfg.reference_window_events:
             for k in self.feature_names:

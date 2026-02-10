@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Deque, Dict, Iterable, Tuple
 
 import numpy as np
 
@@ -26,8 +26,10 @@ class EntityWindowStore:
 
     def __init__(self, cfg: WindowConfig) -> None:
         self.cfg = cfg
-        self._events: Dict[str, Deque[Event]] = defaultdict(lambda: deque(maxlen=cfg.max_events_per_entity))
-        self._last_ts: Dict[str, float] = {}
+        self._events: dict[str, deque[Event]] = defaultdict(
+            lambda: deque(maxlen=cfg.max_events_per_entity)
+        )
+        self._last_ts: dict[str, float] = {}
 
     def add(self, e: Event) -> None:
         dq = self._events[e.entity_id]
@@ -50,7 +52,7 @@ class EntityWindowStore:
             return float("inf")
         return max(0.0, now_ts - last)
 
-    def compute_features(self, e: Event) -> Dict[str, float]:
+    def compute_features(self, e: Event) -> dict[str, float]:
         """Compute features for event e using the window that includes e (after add())."""
         window = list(self.get_window(e.entity_id))
         # Safety: window includes current event; for features that should be strictly prior,

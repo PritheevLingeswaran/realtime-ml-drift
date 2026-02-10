@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import math
-from typing import Tuple
 
 import numpy as np
 
@@ -29,5 +27,5 @@ class ScoreNormalizer:
         # Sigmoid to [0,1]
         return 1.0 / (1.0 + np.exp(-z))
 
-    def state(self) -> Tuple[float, float]:
+    def state(self) -> tuple[float, float]:
         return self.mean_, self.std_

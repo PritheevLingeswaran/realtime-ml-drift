@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 import orjson
 
@@ -11,7 +10,7 @@ from src.streaming.runner import build_state, process_event
 from src.utils.config import load_config
 
 
-def run_evaluation(config_path: Optional[str] = None) -> None:
+def run_evaluation(config_path: str | None = None) -> None:
     cfg = load_config(config_path).raw
     path = str(cfg["streaming"]["replay_path"])
     if not os.path.exists(path):

@@ -16,6 +16,7 @@ def parse_args() -> argparse.Namespace:
 
 def _run_stream(cfg: str | None) -> None:
     import asyncio
+
     asyncio.run(run_stream_processor(config_path=cfg))
 
 

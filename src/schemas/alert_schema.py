@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -14,5 +14,5 @@ class Alert(BaseModel):
     threshold: float = Field(..., ge=0.0, le=1.0)
     severity: Literal["low", "medium", "high"]
     reason: str
-    drift_state: Dict[str, Any] = Field(default_factory=dict)
-    metadata: Optional[Dict[str, Any]] = None
+    drift_state: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] | None = None

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 
 
-def deep_merge(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
+def deep_merge(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
     """Merge b into a recursively (b wins)."""
     out = dict(a)
     for k, v in b.items():
@@ -18,14 +18,14 @@ def deep_merge(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
-def load_yaml(path: str) -> Dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as f:
+def load_yaml(path: str) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
 @dataclass(frozen=True)
 class AppConfig:
-    raw: Dict[str, Any]
+    raw: dict[str, Any]
 
     @property
     def env(self) -> str:

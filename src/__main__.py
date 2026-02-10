@@ -10,7 +10,9 @@ from src.streaming.runner import run_stream_processor
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="realtime-ml-drift entrypoint")
-    p.add_argument("--config", default=None, help="Path to YAML config (defaults to env CONFIG_PATH)")
+    p.add_argument(
+        "--config", default=None, help="Path to YAML config (defaults to env CONFIG_PATH)"
+    )
     p.add_argument("--mode", default="api", choices=["api", "stream"], help="Run mode")
     return p.parse_args()
 

@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import math
 import random
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import AsyncIterator, Dict, Iterable, List, Optional
 
 import orjson
 
 from src.schemas.event_schema import Event
 from src.utils.ids import stable_id
 from src.utils.time import now_ts
-
 
 MERCHANT_CATEGORIES = ["grocery", "fuel", "electronics", "fashion", "pharmacy", "travel", "food"]
 COUNTRIES = ["US", "IN", "CA", "GB", "AU"]
@@ -112,7 +109,7 @@ class JSONLReplaySource(EventSource):
 
     async def stream(self) -> AsyncIterator[Event]:
         # Deterministic replay: preserve original timestamps but optionally speed up sleep.
-        prev_ts: Optional[float] = None
+        prev_ts: float | None = None
         with open(self.path, "rb") as f:
             for line in f:
                 obj = orjson.loads(line)

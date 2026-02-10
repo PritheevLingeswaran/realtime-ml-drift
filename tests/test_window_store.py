@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import time
-
 from src.feature_engineering.window_store import EntityWindowStore, WindowConfig
 from src.schemas.event_schema import Event
 from src.utils.ids import stable_id
