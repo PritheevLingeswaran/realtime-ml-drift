@@ -1,0 +1,10 @@
+drift:
+  feature_checks:
+    ks_pvalue_threshold: 0.0005
+    psi_threshold: 0.20
+  prediction_checks:
+    ks_pvalue_threshold: 0.0005
+    psi_threshold: 0.20
+    adwin:
+      enabled: true
+      delta: 0.0015

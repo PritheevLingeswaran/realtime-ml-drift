@@ -1,0 +1,7 @@
+.venv
+__pycache__
+data
+tests
+.git
+.vscode
+.idea

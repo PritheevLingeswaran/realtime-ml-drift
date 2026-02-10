@@ -1,0 +1,12 @@
+app:
+  env: prod
+
+streaming:
+  event_rate_per_sec: 250
+  entity_cardinality: 50000
+
+monitoring:
+  log_level: INFO
+
+api:
+  start_background_stream: true

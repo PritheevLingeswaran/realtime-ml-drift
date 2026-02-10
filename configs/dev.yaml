@@ -1,0 +1,12 @@
+app:
+  env: dev
+
+streaming:
+  event_rate_per_sec: 20
+  entity_cardinality: 600
+
+monitoring:
+  log_level: DEBUG
+
+api:
+  start_background_stream: true
