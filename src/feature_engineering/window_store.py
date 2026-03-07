@@ -178,3 +178,37 @@ class EntityWindowStore:
             "time_since_last": float(self.time_since_last(e.entity_id, e.ts)),
             "rate_per_min": float(rate_per_min),
         }
+
+    def snapshot_state(self) -> dict[str, object]:
+        # Why: bounded per-entity state must survive restart to avoid feature cold-start regressions.
+        out: dict[str, object] = {"entities": {}}
+        entities = out["entities"]  # type: ignore[assignment]
+        for entity_id, st in self._entities.items():
+            entities[entity_id] = {  # type: ignore[index]
+                "events": [e.model_dump() for e in st.events],
+                "sum_amount": float(st.sum_amount),
+                "sumsq_amount": float(st.sumsq_amount),
+                "merchant_counts": dict(st.merchant_counts),
+                "country_counts": dict(st.country_counts),
+                "last_event_ts": st.last_event_ts,
+            }
+        return out
+
+    def load_snapshot_state(self, state: dict[str, object]) -> None:
+        self._entities.clear()
+        entities = state.get("entities", {})
+        for entity_id, payload in entities.items():  # type: ignore[union-attr]
+            st = _EntityStats(max_events=self.cfg.max_events_per_entity)
+            for row in payload.get("events", []):  # type: ignore[union-attr]
+                st.events.append(Event(**row))  # type: ignore[arg-type]
+            st.sum_amount = float(payload.get("sum_amount", 0.0))  # type: ignore[union-attr]
+            st.sumsq_amount = float(payload.get("sumsq_amount", 0.0))  # type: ignore[union-attr]
+            st.merchant_counts = {
+                str(k): int(v) for k, v in payload.get("merchant_counts", {}).items()  # type: ignore[union-attr]
+            }
+            st.country_counts = {
+                str(k): int(v) for k, v in payload.get("country_counts", {}).items()  # type: ignore[union-attr]
+            }
+            last_ts = payload.get("last_event_ts", None)  # type: ignore[union-attr]
+            st.last_event_ts = None if last_ts is None else float(last_ts)
+            self._entities[str(entity_id)] = st

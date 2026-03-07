@@ -4,16 +4,28 @@ app:
   seed: 42
 
 streaming:
-  source: synthetic          # synthetic | replay
+  source: synthetic          # synthetic | replay | kafka
   replay_path: data/raw/streams/dev_stream.jsonl
   event_rate_per_sec: 15
   max_events: 0              # 0 => run forever
   entity_cardinality: 800
+  idempotency:
+    dedupe_cache_size: 200000
+  ingestion:
+    queue_max_size: 5000
+    drop_on_overflow: false
+    lag_circuit_breaker_seconds: 5.0
   micro_batch:
     # Off by default for behavior parity; enable to reduce CPU via batched scoring.
     enabled: false
-    batch_size: 64
+    batch_size: 128
     flush_ms: 50
+  kafka:
+    bootstrap_servers: "localhost:9092"
+    topic: "rtml.events"
+    group_id: "rtml-drift"
+    dlq_topic: "rtml.events.dlq"
+    poll_timeout_ms: 500
   drift:
     enabled: true
     drift_start_event: 4000
@@ -46,7 +58,7 @@ drift:
   window_size: 1000
   evaluation_interval: 200
   # Optional periodic expensive checks (KS/PSI) to cut CPU.
-  periodic_expensive_checks_enabled: false
+  periodic_expensive_checks_enabled: true
   check_interval_events: 200
   min_samples: 200
   threshold_method: adaptive   # adaptive | fixed
@@ -106,6 +118,19 @@ api:
   port: 8000
   start_background_stream: true
   max_alerts_returned: 200
+  max_request_bytes: 131072
+  max_requests_per_minute_per_ip: 1200
+
+state:
+  restore_on_startup: true
+  snapshot:
+    enabled: true
+    path: data/processed/state/snapshot.json
+    interval_seconds: 60
+
+security:
+  # Dev default only. In production use gateway auth/mTLS and secret management.
+  admin_api_key: "change-me"
 
 benchmarking:
   # Production default: keep anomaly rate in a resume-defensible band (0.5%-2%).
@@ -119,7 +144,7 @@ benchmarking:
     drift_start_event: 4000
     drift_type: mean_shift_amount
   performance_compare_enabled: false
-  micro_batch_size: 64
+  micro_batch_size: 128
   performance_compare_target_eps: 900
   # Safety valve for alert storms in benchmark reporting.
   max_alerts_per_minute: 120

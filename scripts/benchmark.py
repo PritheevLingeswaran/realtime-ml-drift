@@ -65,6 +65,9 @@ class PassResult:
     cpu_avg_percent: float
     cpu_p95_percent: float
     peak_rss_mb: float
+    processing_lag_p50_s: float
+    processing_lag_p95_s: float
+    processing_lag_max_s: float
     adaptation_stats: dict[str, Any]
 
 
@@ -77,6 +80,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--report_json", default="data/processed/snapshots/benchmark_report.json"
     )
+    p.add_argument(
+        "--performance_compare",
+        action="store_true",
+        help="Run before/after micro-batch comparison on the same replay and duration.",
+    )
+    p.add_argument("--micro_batch_size", type=int, default=128)
+    p.add_argument("--performance_target_eps", type=float, default=900.0)
     return p.parse_args()
 
 
@@ -143,12 +153,14 @@ def run_pass(
     target_events_per_sec: float | None = None,
     labels_available: bool = True,
 ) -> tuple[PassResult, dict[str, Any]]:
-    state = build_state(config_path)
+    # Why: benchmark must start from clean state for reproducible comparisons.
+    state = build_state(config_path, allow_restore=False)
     applied = _apply_benchmark_overrides(state, cfg_raw, adaptation_enabled)
 
     latencies_ms: list[float] = []
     drift_flags: list[bool] | None = [] if labels_available else None
     alert_flags: list[bool] = []
+    lag_samples_s: list[float] = []
 
     first_drift_idx = None
     first_detect_idx = None
@@ -174,7 +186,15 @@ def run_pass(
                     batch.append(replay_events[event_cursor % len(replay_events)])
                     event_cursor += 1
                 ev_t0 = time.perf_counter()
-                outs = runner.run(process_events_batch(state, batch, source="benchmark"))
+                now_wall = time.time()
+                outs = runner.run(
+                    process_events_batch(
+                        state,
+                        batch,
+                        source="benchmark",
+                        ingest_wall_ts=[now_wall for _ in batch],
+                    )
+                )
                 elapsed_ms = (time.perf_counter() - ev_t0) * 1000.0
                 each_ms = elapsed_ms / max(1, len(batch))
                 latencies_ms.extend([each_ms] * len(batch))
@@ -183,13 +203,16 @@ def run_pass(
                 e = replay_events[event_cursor % len(replay_events)]
                 event_cursor += 1
                 ev_t0 = time.perf_counter()
-                out = runner.run(process_event(state, e, source="benchmark"))
+                out = runner.run(
+                    process_event(state, e, source="benchmark", ingest_wall_ts=time.time())
+                )
                 latencies_ms.append((time.perf_counter() - ev_t0) * 1000.0)
                 iter_rows = [(e, out)]
 
             for e, out in iter_rows:
                 if out.get("status") != "scored":
                     continue
+                lag_samples_s.append(float(out.get("processing_lag_seconds", 0.0)))
 
                 scored += 1
                 is_drift = bool(e.drift_tag)
@@ -270,6 +293,9 @@ def run_pass(
         cpu_avg_percent=float(resource["cpu_avg_percent"]),
         cpu_p95_percent=float(resource["cpu_p95_percent"]),
         peak_rss_mb=float(resource["peak_rss_mb"]),
+        processing_lag_p50_s=percentile(lag_samples_s, 0.50),
+        processing_lag_p95_s=percentile(lag_samples_s, 0.95),
+        processing_lag_max_s=max(lag_samples_s) if lag_samples_s else 0.0,
         adaptation_stats=state.threshold.stats(),
     )
 
@@ -323,6 +349,11 @@ def asdict_pass(p: PassResult) -> dict[str, Any]:
             "cpu_p95_percent": p.cpu_p95_percent,
             "peak_rss_mb": p.peak_rss_mb,
         },
+        "processing_lag_seconds": {
+            "p50": p.processing_lag_p50_s,
+            "p95": p.processing_lag_p95_s,
+            "max": p.processing_lag_max_s,
+        },
         "adaptation_stats": p.adaptation_stats,
     }
 
@@ -340,6 +371,8 @@ def render_markdown(report: dict[str, Any]) -> str:
 ## Performance Comparison (Before vs After Micro-Batching)
 - Before CPU avg/p95: `{perf['before']['resource_efficiency']['cpu_avg_percent']:.4f}% / {perf['before']['resource_efficiency']['cpu_p95_percent']:.4f}%`
 - After CPU avg/p95: `{perf['after']['resource_efficiency']['cpu_avg_percent']:.4f}% / {perf['after']['resource_efficiency']['cpu_p95_percent']:.4f}%`
+- Before p99 pipeline latency: `{perf['before']['pipeline_latency_ms']['p99']:.4f} ms`
+- After p99 pipeline latency: `{perf['after']['pipeline_latency_ms']['p99']:.4f} ms`
 - CPU avg delta (after-before): `{perf['cpu_avg_percent_delta']:.4f}%`
 - Throughput before/after: `{perf['before']['throughput']['events_per_sec']:.4f}` / `{perf['after']['throughput']['events_per_sec']:.4f}` events/sec
 - Throughput delta (after-before): `{perf['events_per_sec_delta']:.4f}` events/sec
@@ -351,7 +384,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     def _fmt(v: Any, fmt: str = ".4f") -> str:
         if v is None:
             return "N/A"
-        if isinstance(v, (float, int)):
+        if isinstance(v, float | int):
             return format(v, fmt)
         return str(v)
 
@@ -378,6 +411,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 - Anomaly rate: `{base['alerts']['anomaly_rate']:.4f}` (denominator: `{base['alerts']['anomaly_rate_denominator']}` scored events)
 - CPU avg/p95: `{base['resource_efficiency']['cpu_avg_percent']:.4f}% / {base['resource_efficiency']['cpu_p95_percent']:.4f}%`
 - Peak RSS: `{base['resource_efficiency']['peak_rss_mb']:.4f} MB`
+- Processing lag p50/p95/max: `{base['processing_lag_seconds']['p50']:.6f}` / `{base['processing_lag_seconds']['p95']:.6f}` / `{base['processing_lag_seconds']['max']:.6f}` sec
 
 ## Tuned Pass (adaptation enabled)
 - Throughput: `{tuned['throughput']['events_per_sec']:.4f} events/sec` (`{tuned['throughput']['events_per_min']:.2f} events/min`)
@@ -390,6 +424,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 - Anomaly rate: `{tuned['alerts']['anomaly_rate']:.4f}` (denominator: `{tuned['alerts']['anomaly_rate_denominator']}` scored events)
 - CPU avg/p95: `{tuned['resource_efficiency']['cpu_avg_percent']:.4f}% / {tuned['resource_efficiency']['cpu_p95_percent']:.4f}%`
 - Peak RSS: `{tuned['resource_efficiency']['peak_rss_mb']:.4f} MB`
+- Processing lag p50/p95/max: `{tuned['processing_lag_seconds']['p50']:.6f}` / `{tuned['processing_lag_seconds']['p95']:.6f}` / `{tuned['processing_lag_seconds']['max']:.6f}` sec
 
 ## Baseline vs Tuned
 - False positive reduction: `{_fmt(cmp_['false_positive_reduction_percent'])}%`
@@ -436,7 +471,7 @@ def main() -> int:
     )
 
     bcfg = cfg.get("benchmarking", {})
-    perf_compare_enabled = bool(bcfg.get("performance_compare_enabled", False))
+    perf_compare_enabled = bool(args.performance_compare or bcfg.get("performance_compare_enabled", False))
     perf_compare: dict[str, Any] | None = None
     if perf_compare_enabled:
         perf_before, _ = run_pass(
@@ -447,7 +482,7 @@ def main() -> int:
             duration_sec=int(args.duration_sec),
             adaptation_enabled=False,
             use_micro_batch=False,
-            target_events_per_sec=float(bcfg.get("performance_compare_target_eps", 900.0)),
+            target_events_per_sec=float(args.performance_target_eps),
             labels_available=labels_available,
         )
         perf_after, _ = run_pass(
@@ -458,8 +493,8 @@ def main() -> int:
             duration_sec=int(args.duration_sec),
             adaptation_enabled=False,
             use_micro_batch=True,
-            micro_batch_size=int(bcfg.get("micro_batch_size", 64)),
-            target_events_per_sec=float(bcfg.get("performance_compare_target_eps", 900.0)),
+            micro_batch_size=int(args.micro_batch_size),
+            target_events_per_sec=float(args.performance_target_eps),
             labels_available=labels_available,
         )
         perf_compare = {
@@ -519,6 +554,9 @@ def main() -> int:
             "config": args.config,
             "replay": args.replay,
             "duration_sec": int(args.duration_sec),
+            "performance_compare": bool(perf_compare_enabled),
+            "micro_batch_size": int(args.micro_batch_size),
+            "performance_target_eps": float(args.performance_target_eps),
         },
         "integrity": {
             "drift_tag_present_all": labels_available,

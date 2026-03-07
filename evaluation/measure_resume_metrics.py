@@ -33,33 +33,32 @@ def main():
 
     t0 = time.time()
 
-    with asyncio.Runner() as runner:
-        with open(args.replay, "rb") as f:
-            for idx, line in enumerate(f, start=1):
-                e = Event(**orjson.loads(line))
-                total += 1
+    with asyncio.Runner() as runner, open(args.replay, "rb") as f:
+        for idx, line in enumerate(f, start=1):
+            e = Event(**orjson.loads(line))
+            total += 1
 
-                out = __run(runner, state, e)
-                if out.get("status") != "scored":
-                    continue
+            out = __run(runner, state, e)
+            if out.get("status") != "scored":
+                continue
 
-                scored += 1
+            scored += 1
 
-                # Ground-truth drift start.
-                if drift_start_ts is None and e.drift_tag is not None:
-                    drift_start_ts = e.ts
-                    drift_start_idx = idx
+            # Ground-truth drift start.
+            if drift_start_ts is None and e.drift_tag is not None:
+                drift_start_ts = e.ts
+                drift_start_idx = idx
 
-                # First detection moment.
-                if drift_start_ts is not None and detect_ts is None and out.get("drift_active") is True:
-                    detect_ts = e.ts
-                    detect_idx = idx
+            # First detection moment.
+            if drift_start_ts is not None and detect_ts is None and out.get("drift_active") is True:
+                detect_ts = e.ts
+                detect_idx = idx
 
-                # Alert counting.
-                if out.get("is_anomaly") is True:
-                    alerts += 1
-                    if e.drift_tag is None:
-                        false_alerts += 1
+            # Alert counting.
+            if out.get("is_anomaly") is True:
+                alerts += 1
+                if e.drift_tag is None:
+                    false_alerts += 1
 
     t1 = time.time()
     duration = max(1e-9, t1 - t0)

@@ -1,15 +1,42 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from collections import defaultdict, deque
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import ORJSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import Response
 
+from src.monitoring import metrics as m
 from src.schemas.event_schema import Event
-from src.streaming.runner import ServiceState, build_state, process_event
+from src.streaming.runner import ServiceState, _build_source, build_state, process_event, state_view
+
+
+class _RateLimiter:
+    def __init__(self, rpm_limit: int) -> None:
+        self.rpm_limit = max(1, int(rpm_limit))
+        self._hits: dict[str, deque[float]] = defaultdict(deque)
+
+    def allow(self, key: str, now: float) -> bool:
+        q = self._hits[key]
+        cutoff = now - 60.0
+        while q and q[0] < cutoff:
+            q.popleft()
+        if len(q) >= self.rpm_limit:
+            return False
+        q.append(now)
+        return True
+
+
+def _require_admin_key(state: ServiceState, api_key: str | None) -> None:
+    expected = str(state.config.get("security", {}).get("admin_api_key", ""))
+    if not expected:
+        raise HTTPException(status_code=503, detail="admin_api_key_not_configured")
+    if api_key != expected:
+        raise HTTPException(status_code=401, detail="unauthorized")
 
 
 def create_app(config_path: str | None = None) -> FastAPI:
@@ -23,11 +50,27 @@ def create_app(config_path: str | None = None) -> FastAPI:
 
     app.state.service = state  # type: ignore[attr-defined]
 
+    api_cfg = state.config.get("api", {})
+    max_body_bytes = int(api_cfg.get("max_request_bytes", 131072))
+    rpm_limit = int(api_cfg.get("max_requests_per_minute_per_ip", 1200))
+    limiter = _RateLimiter(rpm_limit=rpm_limit)
+
+    @app.middleware("http")
+    async def _enforce_basic_limits(request: Request, call_next):  # type: ignore[no-untyped-def]
+        # Why: basic request guards prevent accidental memory amplification from oversized payloads.
+        clen = request.headers.get("content-length")
+        if clen is not None and int(clen) > max_body_bytes:
+            return ORJSONResponse({"detail": "request_too_large"}, status_code=413)
+        ip = request.client.host if request.client else "unknown"
+        if not limiter.allow(ip, time.time()):
+            m.ERRORS_TOTAL.labels(component="api").inc()
+            return ORJSONResponse({"detail": "rate_limited"}, status_code=429)
+        return await call_next(request)
+
     @app.on_event("startup")
     async def _startup() -> None:
         cfg = state.config
         if bool(cfg["api"].get("start_background_stream", False)):
-            # Start streaming in the background (dev/prod convenience).
             app.state.stream_task = asyncio.create_task(_bg_stream(state))  # type: ignore[attr-defined]
             state.logger.info("bg_stream_started")
 
@@ -43,22 +86,24 @@ def create_app(config_path: str | None = None) -> FastAPI:
             "status": "ok",
             "model_ready": bool(state.scorer.ready),
             "env": str(state.config["app"]["env"]),
+            "restored": bool(state.runtime.restored),
         }
+
+    @app.get("/state")
+    async def get_state() -> dict:
+        return state_view(state)
 
     @app.post("/score")
     async def score(e: Event) -> dict:
-        # Ad-hoc scoring endpoint (same pipeline).
-        return await process_event(state, e, source="api")
+        return await process_event(state, e, source="api", ingest_wall_ts=time.time())
 
     @app.post("/predict")
     async def predict(e: Event) -> dict:
-        # Alias for scoring endpoint; useful for common ML-serving integrations.
-        return await process_event(state, e, source="api")
+        return await process_event(state, e, source="api", ingest_wall_ts=time.time())
 
     @app.post("/detect_drift")
     async def detect_drift(e: Event) -> dict:
-        # Drift-focused view over the same online scoring + drift pipeline.
-        out = await process_event(state, e, source="api")
+        out = await process_event(state, e, source="api", ingest_wall_ts=time.time())
         return {
             "status": str(out.get("status", "unknown")),
             "event_id": str(out.get("event_id", "")),
@@ -67,6 +112,31 @@ def create_app(config_path: str | None = None) -> FastAPI:
             "score": float(out.get("score", 0.0)),
             "threshold": float(out.get("threshold", 0.0)),
         }
+
+    @app.post("/admin/freeze_adaptation")
+    async def freeze_adaptation(x_api_key: str | None = Header(default=None)) -> dict:
+        _require_admin_key(state, x_api_key)
+        state.threshold.freeze("admin")
+        m.ADMIN_ACTIONS_TOTAL.labels(action="freeze_adaptation", result="success").inc()
+        state.logger.info("admin_action", audit_type="admin", action="freeze_adaptation")
+        return {"status": "ok", "adaptation_frozen": True}
+
+    @app.post("/admin/unfreeze_adaptation")
+    async def unfreeze_adaptation(x_api_key: str | None = Header(default=None)) -> dict:
+        _require_admin_key(state, x_api_key)
+        state.threshold.unfreeze()
+        state.runtime.lag_circuit_open = False
+        m.ADMIN_ACTIONS_TOTAL.labels(action="unfreeze_adaptation", result="success").inc()
+        state.logger.info("admin_action", audit_type="admin", action="unfreeze_adaptation")
+        return {"status": "ok", "adaptation_frozen": False}
+
+    @app.post("/admin/refresh_reference")
+    async def refresh_reference(x_api_key: str | None = Header(default=None)) -> dict:
+        _require_admin_key(state, x_api_key)
+        state.drift.refresh_reference()
+        m.ADMIN_ACTIONS_TOTAL.labels(action="refresh_reference", result="success").inc()
+        state.logger.info("admin_action", audit_type="admin", action="refresh_reference")
+        return {"status": "ok", "reference_refreshed": True}
 
     @app.get("/alerts")
     async def alerts(limit: int = 200) -> list[dict]:
@@ -82,36 +152,14 @@ def create_app(config_path: str | None = None) -> FastAPI:
 
 
 async def _bg_stream(state: ServiceState) -> None:
-    from src.streaming.sources import DriftScenario, JSONLReplaySource, SyntheticTransactionSource
+    src, is_kafka = _build_source(state.config)
+    state.logger.info("bg_stream_loop", source=state.config["streaming"]["source"])
+    from src.streaming.runner import process_source_with_backpressure
 
-    cfg = state.config
-    scfg = cfg["streaming"]
-    drift_cfg = scfg.get("drift", {})
-    drift = DriftScenario(
-        enabled=bool(drift_cfg.get("enabled", True)),
-        drift_start_event=int(drift_cfg.get("drift_start_event", 0)),
-        drift_type=str(drift_cfg.get("drift_type", "mean_shift_amount")),
-    )
-
-    if scfg["source"] == "synthetic":
-        src = SyntheticTransactionSource(
-            seed=int(cfg["app"]["seed"]),
-            event_rate_per_sec=float(scfg["event_rate_per_sec"]),
-            entity_cardinality=int(scfg["entity_cardinality"]),
-            max_events=int(scfg["max_events"]),
-            drift=drift,
-        )
-    else:
-        src = JSONLReplaySource(
-            path=str(scfg["replay_path"]), speedup=20.0 if cfg["app"]["env"] == "dev" else 1.0
-        )
-
-    state.logger.info("bg_stream_loop", source=scfg["source"])
-    async for e in src.stream():
-        try:
-            await process_event(state, e, source="stream")
-        except Exception as ex:  # noqa: BLE001
-            state.logger.error("bg_stream_error", error=str(ex), event_id=e.event_id)
+    try:
+        await process_source_with_backpressure(state, src, is_kafka=is_kafka)
+    except Exception as ex:  # noqa: BLE001
+        state.logger.error("bg_stream_error", error=str(ex))
 
 
 def run_api(config_path: str | None = None) -> None:

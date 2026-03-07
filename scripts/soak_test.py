@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import sys
 import time
@@ -14,13 +15,13 @@ import orjson
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from src.monitoring import metrics as m  # noqa: E402
 from src.monitoring.benchmarking import (  # noqa: E402
     ResourceSampler,
     environment_info,
     percentile,
     read_errors_total_best_effort,
 )
-from src.monitoring import metrics as m  # noqa: E402
 from src.schemas.event_schema import Event  # noqa: E402
 from src.streaming.runner import build_state, process_event  # noqa: E402
 
@@ -198,10 +199,8 @@ def main() -> int:
             m.ERRORS_TOTAL.labels(component="stream").inc()
 
             down_start = time.perf_counter()
-            try:
+            with contextlib.suppress(Exception):
                 runner.close()
-            except Exception:  # noqa: BLE001
-                pass
 
             state = build_state(args.config)
             runner = asyncio.Runner()
@@ -209,10 +208,8 @@ def main() -> int:
             downtime += max(0.0, time.perf_counter() - down_start)
 
     sampler.stop()
-    try:
+    with contextlib.suppress(Exception):
         runner.close()
-    except Exception:  # noqa: BLE001
-        pass
 
     elapsed = max(1e-9, time.perf_counter() - start_wall)
     availability_percent = compute_availability_percent(elapsed, downtime)

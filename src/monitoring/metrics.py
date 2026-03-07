@@ -21,6 +21,10 @@ EVENTS_INGESTED = Counter("events_ingested_total", "Total events ingested", ["so
 EVENTS_SCORED = Counter("events_scored_total", "Total events scored")
 ALERTS_EMITTED = Counter("alerts_emitted_total", "Total alerts emitted", ["severity"])
 ERRORS_TOTAL = Counter("errors_total", "Total errors", ["component"])
+DUPLICATE_EVENTS_TOTAL = Counter("duplicate_events_total", "Total duplicate events skipped", ["source"])
+DROPPED_EVENTS_TOTAL = Counter("dropped_events_total", "Total events dropped due to explicit overload policy")
+QUEUE_OVERFLOW_TOTAL = Counter("queue_overflow_total", "Total queue overflow events", ["policy"])
+ADMIN_ACTIONS_TOTAL = Counter("admin_actions_total", "Administrative actions", ["action", "result"])
 
 # Pre-initialize labeled counters so they always export series (even when zero).
 EVENTS_INGESTED.labels(source="stream").inc(0)
@@ -35,6 +39,13 @@ ERRORS_TOTAL.labels(component="feature").inc(0)
 ERRORS_TOTAL.labels(component="model").inc(0)
 ERRORS_TOTAL.labels(component="drift").inc(0)
 ERRORS_TOTAL.labels(component="api").inc(0)
+DUPLICATE_EVENTS_TOTAL.labels(source="stream").inc(0)
+DUPLICATE_EVENTS_TOTAL.labels(source="api").inc(0)
+QUEUE_OVERFLOW_TOTAL.labels(policy="drop").inc(0)
+QUEUE_OVERFLOW_TOTAL.labels(policy="backpressure").inc(0)
+ADMIN_ACTIONS_TOTAL.labels(action="freeze_adaptation", result="success").inc(0)
+ADMIN_ACTIONS_TOTAL.labels(action="unfreeze_adaptation", result="success").inc(0)
+ADMIN_ACTIONS_TOTAL.labels(action="refresh_reference", result="success").inc(0)
 
 # ----------------------------
 # Latency
@@ -78,6 +89,18 @@ DRIFT_RECALL_GAUGE = Gauge("drift_recall", "Adaptive drift recall")
 
 CPU_USAGE_PERCENT = Gauge("cpu_usage", "Process CPU usage percent (best-effort)")
 MEMORY_USAGE_BYTES = Gauge("memory_usage", "Process memory usage in bytes (best-effort)")
+QUEUE_DEPTH = Gauge("queue_depth", "Current ingestion queue depth")
+PROCESSING_LAG_SECONDS = Gauge("processing_lag_seconds", "Current processing lag in seconds")
+MAX_PROCESSING_LAG_SECONDS = Gauge("max_processing_lag_seconds", "Max processing lag seen in current process")
+
+# Kafka/Redpanda operational metrics (optional path).
+CONSUMER_LAG = Gauge("consumer_lag", "Approximate consumer lag", ["topic", "partition"])
+COMMIT_LATENCY_SECONDS = Histogram(
+    "commit_latency_seconds",
+    "Broker commit latency seconds",
+    buckets=(0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5),
+)
+DLQ_COUNT = Counter("dlq_count_total", "Malformed events sent to DLQ")
 
 _PROCESS = None
 _LAST_RESOURCE_TS = 0.0

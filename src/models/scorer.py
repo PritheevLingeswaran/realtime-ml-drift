@@ -83,3 +83,24 @@ class ModelScorer:
             raw = -raw  # anomaly-like
         norm = self.normalizer.transform(raw)
         return [(float(norm[i]), float(raw[i])) for i in range(len(feats_batch))]
+
+    def snapshot_state(self) -> dict[str, object]:
+        mean, std = self.normalizer.state()
+        return {
+            "ready": bool(self._ready),
+            "normalizer_mean": float(mean),
+            "normalizer_std": float(std),
+            "warm_count": int(len(self._warm_X)),
+        }
+
+    def load_snapshot_state(self, state: dict[str, object]) -> None:
+        restored_ready = bool(state.get("ready", False))
+        # Why: IsolationForest internals are not serialized in snapshots.
+        # We must avoid claiming readiness with an unfitted estimator.
+        self._ready = restored_ready if self.model_type != "isolation_forest" else False
+        self.normalizer.load_state(
+            float(state.get("normalizer_mean", 0.0)),
+            float(state.get("normalizer_std", 1.0)),
+        )
+        # Why: warmup vectors are intentionally not restored to keep snapshot compact and stable.
+        self._warm_X.clear()

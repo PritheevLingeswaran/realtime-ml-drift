@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import os
+import time
+from collections import deque
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -16,8 +20,26 @@ from src.monitoring.alerts import AlertStore
 from src.monitoring.logger import configure_logging
 from src.schemas.alert_schema import Alert
 from src.schemas.event_schema import Event
+from src.streaming.state_store import (
+    SnapshotStore,
+    build_snapshot_payload,
+    restore_snapshot_payload,
+)
 from src.utils.config import load_config
 from src.utils.ids import stable_id
+
+
+@dataclass
+class RuntimeState:
+    # Why: idempotency is mandatory for at-least-once ingestion and replay safety.
+    seen_event_ids: deque[str]
+    seen_event_set: set[str]
+    restored: bool = False
+    restored_at_unix: float | None = None
+    last_snapshot_unix: float | None = None
+    lag_circuit_open: bool = False
+    max_processing_lag_seconds: float = 0.0
+    dropped_events_total: int = 0
 
 
 @dataclass
@@ -31,6 +53,8 @@ class ServiceState:
     threshold: ThresholdController
     alerts: AlertStore
     logger: structlog.BoundLogger
+    runtime: RuntimeState
+    snapshot_store: SnapshotStore | None = None
 
 
 @dataclass
@@ -40,7 +64,134 @@ class MicroBatchConfig:
     flush_ms: int
 
 
-def build_state(config_path: str | None) -> ServiceState:
+@dataclass
+class QueueItem:
+    event: Event
+    ingest_wall_ts: float
+    on_success: Callable[[], Awaitable[None]] | None = None
+
+
+async def _noop_async() -> None:
+    return
+
+
+def _build_source(config: dict[str, Any]) -> tuple[Any, bool]:
+    from src.streaming.sources import DriftScenario, JSONLReplaySource, SyntheticTransactionSource
+
+    scfg = config["streaming"]
+    drift_cfg = scfg.get("drift", {})
+    drift = DriftScenario(
+        enabled=bool(drift_cfg.get("enabled", True)),
+        drift_start_event=int(drift_cfg.get("drift_start_event", 0)),
+        drift_type=str(drift_cfg.get("drift_type", "mean_shift_amount")),
+    )
+
+    if scfg["source"] == "synthetic":
+        src = SyntheticTransactionSource(
+            seed=int(config["app"]["seed"]),
+            event_rate_per_sec=float(scfg["event_rate_per_sec"]),
+            entity_cardinality=int(scfg["entity_cardinality"]),
+            max_events=int(scfg["max_events"]),
+            drift=drift,
+        )
+        return src, False
+
+    if scfg["source"] == "replay":
+        src = JSONLReplaySource(
+            path=str(scfg["replay_path"]), speedup=20.0 if config["app"]["env"] == "dev" else 1.0
+        )
+        return src, False
+
+    if scfg["source"] == "kafka":
+        from src.streaming.kafka_source import KafkaConfig, KafkaEventSource
+
+        kcfg = scfg.get("kafka", {})
+        src = KafkaEventSource(
+            KafkaConfig(
+                enabled=True,
+                bootstrap_servers=str(kcfg["bootstrap_servers"]),
+                topic=str(kcfg["topic"]),
+                group_id=str(kcfg["group_id"]),
+                dlq_topic=str(kcfg.get("dlq_topic")) if kcfg.get("dlq_topic") else None,
+                poll_timeout_ms=int(kcfg.get("poll_timeout_ms", 500)),
+            )
+        )
+        return src, True
+
+    raise ValueError(f"Unknown streaming source: {scfg['source']}")
+
+
+def _build_runtime(cfg: dict[str, Any]) -> RuntimeState:
+    dedupe_size = int(cfg.get("streaming", {}).get("idempotency", {}).get("dedupe_cache_size", 200000))
+    return RuntimeState(seen_event_ids=deque(maxlen=max(1, dedupe_size)), seen_event_set=set())
+
+
+def _mark_seen(state: ServiceState, event_id: str) -> None:
+    if len(state.runtime.seen_event_ids) == state.runtime.seen_event_ids.maxlen and state.runtime.seen_event_ids:
+        old = state.runtime.seen_event_ids.popleft()
+        state.runtime.seen_event_set.discard(old)
+    state.runtime.seen_event_ids.append(event_id)
+    state.runtime.seen_event_set.add(event_id)
+
+
+def _is_duplicate(state: ServiceState, event_id: str, source: str) -> bool:
+    if event_id in state.runtime.seen_event_set:
+        m.DUPLICATE_EVENTS_TOTAL.labels(source=source).inc()
+        return True
+    return False
+
+
+def _emit_lag_circuit_alert(state: ServiceState, lag_s: float) -> None:
+    alert = Alert(
+        alert_id=stable_id("lag_circuit", int(time.time())),
+        ts=float(time.time()),
+        entity_id="system",
+        event_id="lag-circuit-breaker",
+        score=1.0,
+        threshold=1.0,
+        severity="high",
+        reason="processing_lag_threshold_exceeded",
+        drift_state={"processing_lag_seconds": float(lag_s)},
+        metadata={"component": "stream_processor"},
+    )
+    state.alerts.add(alert)
+    m.ALERTS_EMITTED.labels(severity="high").inc()
+
+
+def _apply_processing_lag(state: ServiceState, ingest_wall_ts: float | None) -> None:
+    if ingest_wall_ts is None:
+        return
+    lag_s = max(0.0, time.time() - float(ingest_wall_ts))
+    state.runtime.max_processing_lag_seconds = max(state.runtime.max_processing_lag_seconds, lag_s)
+    m.PROCESSING_LAG_SECONDS.set(lag_s)
+    m.MAX_PROCESSING_LAG_SECONDS.set(state.runtime.max_processing_lag_seconds)
+
+    lag_limit = float(
+        state.config.get("streaming", {}).get("ingestion", {}).get("lag_circuit_breaker_seconds", 5.0)
+    )
+    if lag_s > lag_limit and not state.runtime.lag_circuit_open:
+        # Why: if processor lag explodes, freeze automation first to avoid unsafe autonomous threshold changes.
+        state.threshold.freeze("lag_circuit_breaker")
+        state.runtime.lag_circuit_open = True
+        state.logger.warning("lag_circuit_opened", lag_seconds=lag_s, lag_limit_seconds=lag_limit)
+        _emit_lag_circuit_alert(state, lag_s)
+
+
+def _try_snapshot(state: ServiceState) -> None:
+    store = state.snapshot_store
+    if store is None:
+        return
+    snap_cfg = state.config.get("state", {}).get("snapshot", {})
+    interval_s = float(snap_cfg.get("interval_seconds", 60))
+    now = time.time()
+    if state.runtime.last_snapshot_unix is not None and (now - state.runtime.last_snapshot_unix) < interval_s:
+        return
+    payload = build_snapshot_payload(state)
+    store.save(payload)
+    state.runtime.last_snapshot_unix = now
+
+
+def build_state(config_path: str | None, *, allow_restore: bool | None = None) -> ServiceState:
     cfg = load_config(config_path).raw
 
     configure_logging(level=str(cfg["monitoring"]["log_level"]))
@@ -75,7 +226,7 @@ def build_state(config_path: str | None) -> ServiceState:
             evaluation_interval=int(dcfg.get("evaluation_interval", 100)),
             check_interval_events=int(dcfg.get("check_interval_events", 200)),
             periodic_expensive_checks_enabled=bool(
-                dcfg.get("periodic_expensive_checks_enabled", False)
+                dcfg.get("periodic_expensive_checks_enabled", True)
             ),
             min_samples=int(dcfg["min_samples"]),
             feature_ks_p=float(dcfg["feature_checks"]["ks_pvalue_threshold"]),
@@ -128,12 +279,26 @@ def build_state(config_path: str | None) -> ServiceState:
 
     # Alerts
     sink = os.path.join("data", "processed", "snapshots", "alerts.jsonl")
-    alerts = AlertStore(max_size=int(cfg["monitoring"]["alert_buffer_size"]), sink_path=sink)
+    alerts = AlertStore(
+        max_size=int(cfg["monitoring"]["alert_buffer_size"]),
+        sink_path=sink,
+        dedupe_size=int(cfg.get("streaming", {}).get("idempotency", {}).get("dedupe_cache_size", 200000)),
+    )
+
+    snapshot_store: SnapshotStore | None = None
+    if bool(cfg.get("state", {}).get("snapshot", {}).get("enabled", True)):
+        path = str(cfg.get("state", {}).get("snapshot", {}).get("path", "data/processed/state/snapshot.json"))
+        snapshot_store = SnapshotStore(path=path)
+
+    runtime = _build_runtime(cfg)
 
     # Initialize metrics state
     m.CURRENT_THRESHOLD.set(float(threshold.threshold))
+    m.QUEUE_DEPTH.set(0.0)
+    m.PROCESSING_LAG_SECONDS.set(0.0)
+    m.MAX_PROCESSING_LAG_SECONDS.set(0.0)
 
-    return ServiceState(
+    state = ServiceState(
         config=cfg,
         featurizer=featurizer,
         scorer=scorer,
@@ -141,11 +306,29 @@ def build_state(config_path: str | None) -> ServiceState:
         threshold=threshold,
         alerts=alerts,
         logger=logger,
+        runtime=runtime,
+        snapshot_store=snapshot_store,
     )
+
+    # Best-effort restore.
+    should_restore = bool(cfg.get("state", {}).get("restore_on_startup", True))
+    if allow_restore is not None:
+        should_restore = bool(allow_restore)
+    if snapshot_store is not None and should_restore:
+        try:
+            payload = snapshot_store.load()
+            if payload:
+                restore_snapshot_payload(state, payload)
+                state.runtime.restored = True
+                state.runtime.restored_at_unix = time.time()
+                state.logger.info("state_restored", snapshot_path=snapshot_store.path)
+        except Exception as ex:  # noqa: BLE001
+            state.logger.error("state_restore_failed", error=str(ex))
+
+    return state
 
 
 def _severity(score: float, threshold: float) -> str:
-    # Simple severity mapping; production often uses multi-threshold tiers.
     if score >= min(0.99, threshold + 0.10):
         return "high"
     if score >= min(0.95, threshold + 0.05):
@@ -159,15 +342,29 @@ def _finalize_scored_event(
     feats: dict[str, float],
     score: float,
     raw: float,
+    *,
+    ingest_wall_ts: float | None = None,
 ) -> dict[str, Any]:
     with m.DRIFT_LATENCY.time():
         drift_state = state.drift.update(feats=feats, score=score, ts=e.ts)
 
-    # Adapt threshold (guarded)
+    old_thr = float(state.threshold.threshold)
     new_thr = state.threshold.update(score=score, ts=e.ts, drift_active=drift_state.drift_active)
+    if old_thr != float(new_thr):
+        # Why: threshold movements are operationally sensitive and must be auditable.
+        state.logger.info(
+            "threshold_changed",
+            audit_type="threshold_change",
+            old_threshold=old_thr,
+            new_threshold=float(new_thr),
+            event_id=e.event_id,
+        )
+
     m.CURRENT_THRESHOLD.set(float(new_thr))
     m.ANOMALY_RATE.set(float(state.threshold.anomaly_rate()))
     m.DRIFT_ACTIVE.set(1.0 if drift_state.drift_active else 0.0)
+
+    _apply_processing_lag(state, ingest_wall_ts)
 
     is_anom = score >= new_thr
     if is_anom:
@@ -215,6 +412,8 @@ def _finalize_scored_event(
         m.DRIFT_RECALL_GAUGE.set(recall)
     m.update_resource_usage_metrics()
 
+    _try_snapshot(state)
+
     return {
         "status": "scored",
         "event_id": e.event_id,
@@ -236,150 +435,236 @@ def _finalize_scored_event(
             for k, stats in drift_state.feature_stats.items()
         },
         "raw_score": float(raw),
+        "processing_lag_seconds": float(max(0.0, time.time() - ingest_wall_ts)) if ingest_wall_ts else 0.0,
     }
 
 
-async def process_event(state: ServiceState, e: Event, source: str = "stream") -> dict[str, Any]:
+async def process_event(
+    state: ServiceState,
+    e: Event,
+    source: str = "stream",
+    *,
+    ingest_wall_ts: float | None = None,
+) -> dict[str, Any]:
     """Single-event pipeline. Used by both stream runner and API /score."""
+    if source in {"stream", "api"} and _is_duplicate(state, e.event_id, source=source):
+        return {"status": "duplicate", "event_id": e.event_id}
+
     m.EVENTS_INGESTED.labels(source=source).inc()
     with m.FEATURE_LATENCY.time():
         feats = state.featurizer.ingest_and_featurize(e)
 
+    if source in {"stream", "api"}:
+        _mark_seen(state, e.event_id)
+
     if not state.scorer.ready:
         state.scorer.warmup_update(feats)
+        _try_snapshot(state)
         return {"status": "warming_up", "event_id": e.event_id}
 
     with m.SCORE_LATENCY.time():
         score, raw = state.scorer.score(feats)
     m.EVENTS_SCORED.inc()
-    return _finalize_scored_event(state=state, e=e, feats=feats, score=score, raw=raw)
+    return _finalize_scored_event(
+        state=state,
+        e=e,
+        feats=feats,
+        score=score,
+        raw=raw,
+        ingest_wall_ts=ingest_wall_ts,
+    )
 
 
 async def process_events_batch(
     state: ServiceState,
     events: list[Event],
     source: str = "stream",
+    *,
+    ingest_wall_ts: list[float] | None = None,
 ) -> list[dict[str, Any]]:
-    """Batch pipeline path with vectorized model scoring.
-
-    Why:
-    - Featurization stays per-event and stateful.
-    - Model scoring can be batched to reduce Python overhead.
-    - Drift/adaptation/alert remain per-event to preserve semantics.
-    """
+    """Batch pipeline path with vectorized model scoring."""
     if not events:
         return []
 
-    feats_batch: list[dict[str, float]] = []
+    feats_batch: list[dict[str, float] | None] = [None for _ in events]
     outputs: list[dict[str, Any] | None] = [None for _ in events]
 
-    # Step 1: ingest + featurize per event (stateful per entity).
     for i, e in enumerate(events):
+        if source in {"stream", "api"} and _is_duplicate(state, e.event_id, source=source):
+            outputs[i] = {"status": "duplicate", "event_id": e.event_id}
+            continue
         m.EVENTS_INGESTED.labels(source=source).inc()
         with m.FEATURE_LATENCY.time():
-            feats = state.featurizer.ingest_and_featurize(e)
-        feats_batch.append(feats)
+            feats_batch[i] = state.featurizer.ingest_and_featurize(e)
+        if source in {"stream", "api"}:
+            _mark_seen(state, e.event_id)
 
-    # Step 2: warmup if needed, preserving event order and behavior.
-    start_scoring_idx = 0
+    score_indices: list[int] = []
+    score_feats: list[dict[str, float]] = []
     for i, feats in enumerate(feats_batch):
-        if state.scorer.ready:
-            start_scoring_idx = i
-            break
-        state.scorer.warmup_update(feats)
-        outputs[i] = {"status": "warming_up", "event_id": events[i].event_id}
-        start_scoring_idx = i + 1
+        if feats is None:
+            continue
+        if not state.scorer.ready:
+            state.scorer.warmup_update(feats)
+            outputs[i] = {"status": "warming_up", "event_id": events[i].event_id}
+            continue
+        score_indices.append(i)
+        score_feats.append(feats)
 
-    if start_scoring_idx >= len(events):
-        return [o if o is not None else {"status": "warming_up"} for o in outputs]
+    if score_feats:
+        with m.SCORE_LATENCY.time():
+            scored = state.scorer.score_batch(score_feats)
+        for rel_i, (score, raw) in enumerate(scored):
+            i = score_indices[rel_i]
+            m.EVENTS_SCORED.inc()
+            outputs[i] = _finalize_scored_event(
+                state=state,
+                e=events[i],
+                feats=score_feats[rel_i],
+                score=score,
+                raw=raw,
+                ingest_wall_ts=(ingest_wall_ts[i] if ingest_wall_ts and i < len(ingest_wall_ts) else None),
+            )
 
-    # Step 3: vectorized model scoring for the ready slice.
-    with m.SCORE_LATENCY.time():
-        scored = state.scorer.score_batch(feats_batch[start_scoring_idx:])
-
-    for rel_i, (score, raw) in enumerate(scored):
-        i = start_scoring_idx + rel_i
-        m.EVENTS_SCORED.inc()
-        outputs[i] = _finalize_scored_event(
-            state=state,
-            e=events[i],
-            feats=feats_batch[i],
-            score=score,
-            raw=raw,
-        )
-
+    _try_snapshot(state)
     return [o if o is not None else {"status": "warming_up"} for o in outputs]
 
 
-async def run_stream_processor(config_path: str | None = None) -> None:
-    from src.streaming.sources import DriftScenario, JSONLReplaySource, SyntheticTransactionSource
-    import time
-
-    state = build_state(config_path=config_path)
+async def process_source_with_backpressure(state: ServiceState, source: Any, *, is_kafka: bool = False) -> None:
     cfg = state.config
     scfg = cfg["streaming"]
-    drift_cfg = scfg.get("drift", {})
-    drift = DriftScenario(
-        enabled=bool(drift_cfg.get("enabled", True)),
-        drift_start_event=int(drift_cfg.get("drift_start_event", 0)),
-        drift_type=str(drift_cfg.get("drift_type", "mean_shift_amount")),
-    )
-
-    if scfg["source"] == "synthetic":
-        src = SyntheticTransactionSource(
-            seed=int(cfg["app"]["seed"]),
-            event_rate_per_sec=float(scfg["event_rate_per_sec"]),
-            entity_cardinality=int(scfg["entity_cardinality"]),
-            max_events=int(scfg["max_events"]),
-            drift=drift,
-        )
-    elif scfg["source"] == "replay":
-        src = JSONLReplaySource(
-            path=str(scfg["replay_path"]), speedup=20.0 if cfg["app"]["env"] == "dev" else 1.0
-        )
-    else:
-        raise ValueError(f"Unknown streaming source: {scfg['source']}")
-
-    state.logger.info("stream_started", source=scfg["source"], env=cfg["app"]["env"])
     mb_cfg = scfg.get("micro_batch", {})
     micro = MicroBatchConfig(
         enabled=bool(mb_cfg.get("enabled", False)),
-        batch_size=int(mb_cfg.get("batch_size", 64)),
+        batch_size=int(mb_cfg.get("batch_size", 128)),
         flush_ms=int(mb_cfg.get("flush_ms", 50)),
     )
 
-    if not micro.enabled:
-        async for e in src.stream():
-            try:
-                await process_event(state, e, source="stream")
-            except Exception as ex:  # noqa: BLE001
-                m.ERRORS_TOTAL.labels(component="stream_processor").inc()
-                state.logger.error("process_error", error=str(ex), event_id=e.event_id)
-        return
+    ingest_cfg = scfg.get("ingestion", {})
+    queue_max = int(ingest_cfg.get("queue_max_size", 5000))
+    drop_on_overflow = bool(ingest_cfg.get("drop_on_overflow", False))
 
-    batch: list[Event] = []
-    flush_deadline = 0.0
-    async for e in src.stream():
-        now = time.perf_counter()
-        if not batch:
-            flush_deadline = now + (micro.flush_ms / 1000.0)
-        batch.append(e)
+    queue: asyncio.Queue[QueueItem] = asyncio.Queue(maxsize=max(1, queue_max))
+    stop = asyncio.Event()
 
-        should_flush = len(batch) >= max(1, micro.batch_size) or now >= flush_deadline
-        if not should_flush:
-            continue
-
+    async def producer() -> None:
         try:
-            await process_events_batch(state, batch, source="stream")
-        except Exception as ex:  # noqa: BLE001
-            m.ERRORS_TOTAL.labels(component="stream_processor").inc()
-            state.logger.error("process_batch_error", error=str(ex), batch_size=len(batch))
+            if is_kafka:
+                async for e, rec in source.stream():
+                    item = QueueItem(
+                        event=e,
+                        ingest_wall_ts=time.time(),
+                        on_success=(lambda rec=rec: source.commit(rec)),
+                    )
+                    if queue.full() and drop_on_overflow:
+                        state.runtime.dropped_events_total += 1
+                        m.DROPPED_EVENTS_TOTAL.inc()
+                        m.QUEUE_OVERFLOW_TOTAL.labels(policy="drop").inc()
+                        continue
+                    if queue.full():
+                        m.QUEUE_OVERFLOW_TOTAL.labels(policy="backpressure").inc()
+                    await queue.put(item)
+                    m.QUEUE_DEPTH.set(float(queue.qsize()))
+            else:
+                async for e in source.stream():
+                    item = QueueItem(event=e, ingest_wall_ts=time.time(), on_success=_noop_async)
+                    if queue.full() and drop_on_overflow:
+                        state.runtime.dropped_events_total += 1
+                        m.DROPPED_EVENTS_TOTAL.inc()
+                        m.QUEUE_OVERFLOW_TOTAL.labels(policy="drop").inc()
+                        continue
+                    if queue.full():
+                        m.QUEUE_OVERFLOW_TOTAL.labels(policy="backpressure").inc()
+                    await queue.put(item)
+                    m.QUEUE_DEPTH.set(float(queue.qsize()))
         finally:
-            batch.clear()
+            stop.set()
 
-    if batch:
-        try:
-            await process_events_batch(state, batch, source="stream")
-        except Exception as ex:  # noqa: BLE001
-            m.ERRORS_TOTAL.labels(component="stream_processor").inc()
-            state.logger.error("process_batch_error", error=str(ex), batch_size=len(batch))
+    async def consumer() -> None:
+        batch_events: list[Event] = []
+        batch_items: list[QueueItem] = []
+        flush_deadline = 0.0
+
+        while not (stop.is_set() and queue.empty()):
+            timeout = 0.05
+            if micro.enabled and batch_events:
+                timeout = max(0.0, flush_deadline - time.perf_counter())
+
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=timeout)
+                m.QUEUE_DEPTH.set(float(queue.qsize()))
+                if not batch_events:
+                    flush_deadline = time.perf_counter() + (micro.flush_ms / 1000.0)
+                batch_events.append(item.event)
+                batch_items.append(item)
+            except TimeoutError:
+                pass
+
+            should_flush = False
+            if not micro.enabled:
+                should_flush = len(batch_events) >= 1
+            else:
+                should_flush = bool(batch_events) and (
+                    len(batch_events) >= max(1, micro.batch_size) or time.perf_counter() >= flush_deadline
+                )
+
+            if not should_flush:
+                continue
+
+            try:
+                if len(batch_events) == 1 and not micro.enabled:
+                    out = await process_event(
+                        state,
+                        batch_events[0],
+                        source="stream",
+                        ingest_wall_ts=batch_items[0].ingest_wall_ts,
+                    )
+                    if out.get("status") in ("scored", "warming_up", "duplicate") and batch_items[0].on_success:
+                        await batch_items[0].on_success()
+                else:
+                    outs = await process_events_batch(
+                        state,
+                        batch_events,
+                        source="stream",
+                        ingest_wall_ts=[x.ingest_wall_ts for x in batch_items],
+                    )
+                    for out, item in zip(outs, batch_items, strict=False):
+                        if out.get("status") in ("scored", "warming_up", "duplicate") and item.on_success:
+                            await item.on_success()
+            except Exception as ex:  # noqa: BLE001
+                m.ERRORS_TOTAL.labels(component="stream").inc()
+                state.logger.error("stream_process_error", error=str(ex))
+            finally:
+                batch_events.clear()
+                batch_items.clear()
+
+    state.logger.info("stream_started", source=scfg["source"], env=cfg["app"]["env"])
+    producer_task = asyncio.create_task(producer())
+    consumer_task = asyncio.create_task(consumer())
+    await asyncio.gather(producer_task, consumer_task)
+
+
+async def run_stream_processor(config_path: str | None = None) -> None:
+    state = build_state(config_path=config_path)
+    src, is_kafka = _build_source(state.config)
+    await process_source_with_backpressure(state, src, is_kafka=is_kafka)
+
+
+def state_view(state: ServiceState) -> dict[str, Any]:
+    return {
+        "model_ready": bool(state.scorer.ready),
+        "threshold": float(state.threshold.threshold),
+        "adaptation_frozen": bool(state.threshold.is_frozen),
+        "adaptation_freeze_reason": state.threshold.stats().get("freeze_reason", ""),
+        "drift_active": bool(state.drift.state.drift_active),
+        "drift_warning_active": bool(state.drift.state.drift_warning_active),
+        "drift_score": float(state.drift.state.drift_score),
+        "anomaly_rate_recent": float(state.threshold.anomaly_rate()),
+        "queue_depth": float(m.QUEUE_DEPTH._value.get()),
+        "processing_lag_seconds": float(m.PROCESSING_LAG_SECONDS._value.get()),
+        "max_processing_lag_seconds": float(m.MAX_PROCESSING_LAG_SECONDS._value.get()),
+        "dropped_events_total": int(m.DROPPED_EVENTS_TOTAL._value.get()),
+        "restored": bool(state.runtime.restored),
+        "restored_at_unix": state.runtime.restored_at_unix,
+        "last_snapshot_unix": state.runtime.last_snapshot_unix,
+    }

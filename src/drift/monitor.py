@@ -429,3 +429,65 @@ class DriftMonitor:
                         + float(self.cfg.feature_threshold_k) * np.std(arr)
                     ),
                 )
+
+    def snapshot_state(self) -> dict[str, object]:
+        # Why: restart-safe operation requires preserving reference/current drift context.
+        return {
+            "eval_tick": int(self._eval_tick),
+            "warning_streak": int(self._warning_streak),
+            "critical_streak": int(self._critical_streak),
+            "last_alert_eval": int(self._last_alert_eval),
+            "drift_score_history": list(self._drift_score_history),
+            "ref_feats": {k: list(v) for k, v in self._ref_feats.items()},
+            "cur_feats": {k: list(v) for k, v in self._cur_feats.items()},
+            "ref_scores": list(self._ref_scores),
+            "cur_scores": list(self._cur_scores),
+            "feat_psi_hist": {k: list(v) for k, v in self._feat_psi_hist.items()},
+            "feat_ks_ratio_hist": {k: list(v) for k, v in self._feat_ks_ratio_hist.items()},
+            "feat_psi_thr": dict(self._feat_psi_thr),
+            "feat_ks_ratio_thr": dict(self._feat_ks_ratio_thr),
+            "state": self._state.to_dict(),
+        }
+
+    def load_snapshot_state(self, payload: dict[str, object]) -> None:
+        self._eval_tick = int(payload.get("eval_tick", 0))
+        self._warning_streak = int(payload.get("warning_streak", 0))
+        self._critical_streak = int(payload.get("critical_streak", 0))
+        self._last_alert_eval = int(payload.get("last_alert_eval", -10**9))
+
+        self._drift_score_history.clear()
+        for x in payload.get("drift_score_history", []):  # type: ignore[union-attr]
+            self._drift_score_history.append(float(x))
+
+        for k in self.feature_names:
+            self._ref_feats[k] = [float(x) for x in payload.get("ref_feats", {}).get(k, [])]  # type: ignore[union-attr]
+            self._cur_feats[k].clear()
+            for x in payload.get("cur_feats", {}).get(k, []):  # type: ignore[union-attr]
+                self._cur_feats[k].append(float(x))
+
+            self._feat_psi_hist[k].clear()
+            for x in payload.get("feat_psi_hist", {}).get(k, []):  # type: ignore[union-attr]
+                self._feat_psi_hist[k].append(float(x))
+            self._feat_ks_ratio_hist[k].clear()
+            for x in payload.get("feat_ks_ratio_hist", {}).get(k, []):  # type: ignore[union-attr]
+                self._feat_ks_ratio_hist[k].append(float(x))
+
+            self._feat_psi_thr[k] = float(payload.get("feat_psi_thr", {}).get(k, self.cfg.feature_psi))  # type: ignore[union-attr]
+            self._feat_ks_ratio_thr[k] = float(payload.get("feat_ks_ratio_thr", {}).get(k, 1.0))  # type: ignore[union-attr]
+
+        self._ref_scores = [float(x) for x in payload.get("ref_scores", [])]  # type: ignore[union-attr]
+        self._cur_scores.clear()
+        for x in payload.get("cur_scores", []):  # type: ignore[union-attr]
+            self._cur_scores.append(float(x))
+
+        if len(self._ref_scores) >= self.cfg.min_samples:
+            self._build_reference_cache()
+
+        state_payload = payload.get("state", {})
+        self._state.drift_active = bool(state_payload.get("drift_active", False))  # type: ignore[union-attr]
+        self._state.drift_fixed_active = bool(state_payload.get("drift_fixed_active", False))  # type: ignore[union-attr]
+        self._state.drift_warning_active = bool(state_payload.get("drift_warning_active", False))  # type: ignore[union-attr]
+        self._state.drift_evaluated = bool(state_payload.get("drift_evaluated", False))  # type: ignore[union-attr]
+        self._state.drift_score = float(state_payload.get("drift_score", 0.0))  # type: ignore[union-attr]
+        self._state.drift_threshold = float(state_payload.get("drift_threshold", 0.0))  # type: ignore[union-attr]
+        self._state.last_update_ts = float(state_payload.get("last_update_ts", 0.0))  # type: ignore[union-attr]

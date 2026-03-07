@@ -29,3 +29,7 @@ class ScoreNormalizer:
 
     def state(self) -> tuple[float, float]:
         return self.mean_, self.std_
+
+    def load_state(self, mean: float, std: float) -> None:
+        self.mean_ = float(mean)
+        self.std_ = float(std) if float(std) != 0.0 else 1.0

@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from collections import defaultdict, deque
+from collections.abc import Iterable
+
+import numpy as np
+
 from src.feature_engineering.window_store import EntityWindowStore, WindowConfig
 from src.schemas.event_schema import Event
 from src.utils.ids import stable_id
@@ -70,3 +75,71 @@ def test_incremental_uniq_counts_with_eviction() -> None:
     store.add(e4)
     feats2 = store.compute_features(e4)
     assert feats2["uniq_merchant_5m"] == 1.0
+
+
+def _ref_features(window: Iterable[Event], e: Event) -> dict[str, float]:
+    w = list(window)
+    if w and w[-1].event_id == e.event_id:
+        w = w[:-1]
+    if not w:
+        return {
+            "cnt_5m": 0.0,
+            "amt_sum_5m": 0.0,
+            "amt_mean_5m": 0.0,
+            "amt_std_5m": 0.0,
+            "uniq_merchant_5m": 0.0,
+            "uniq_country_5m": 0.0,
+            "time_since_last": 0.0,
+            "rate_per_min": 0.0,
+        }
+    amts = np.array([x.amount for x in w], dtype=float)
+    first_ts = min(x.ts for x in w)
+    dur = max(1.0, e.ts - first_ts)
+    return {
+        "cnt_5m": float(len(w)),
+        "amt_sum_5m": float(amts.sum()),
+        "amt_mean_5m": float(amts.mean()),
+        "amt_std_5m": float(amts.std()),
+        "uniq_merchant_5m": float(len({x.merchant_id for x in w})),
+        "uniq_country_5m": float(len({x.country for x in w})),
+        "time_since_last": float(max(0.0, e.ts - w[-1].ts)),
+        "rate_per_min": float((len(w) / dur) * 60.0),
+    }
+
+
+def test_incremental_features_match_reference_deque_logic() -> None:
+    cfg = WindowConfig(window_seconds=6, max_events_per_entity=8)
+    store = EntityWindowStore(cfg)
+    ref: dict[str, deque[Event]] = defaultdict(deque)
+
+    events: list[Event] = []
+    t0 = 1000.0
+    for i in range(25):
+        e = mk_event(i, t0 + i, f"acct_{i % 3}", amt=float(10 + (i % 7)))
+        e.merchant_id = f"m{i % 4}"
+        e.country = ["US", "IN", "GB"][i % 3]
+        events.append(e)
+
+    for e in events:
+        dq = ref[e.entity_id]
+        cutoff = e.ts - float(cfg.window_seconds)
+        while dq and dq[0].ts < cutoff:
+            dq.popleft()
+        if len(dq) >= cfg.max_events_per_entity:
+            dq.popleft()
+        dq.append(e)
+
+        store.add(e)
+        got = store.compute_features(e)
+        exp = _ref_features(dq, e)
+
+        for k in (
+            "cnt_5m",
+            "amt_sum_5m",
+            "amt_mean_5m",
+            "amt_std_5m",
+            "uniq_merchant_5m",
+            "uniq_country_5m",
+            "rate_per_min",
+        ):
+            assert abs(got[k] - exp[k]) < 1e-9, k

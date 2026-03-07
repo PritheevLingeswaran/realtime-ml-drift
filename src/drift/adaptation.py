@@ -33,6 +33,8 @@ class ThresholdController:
         self.threshold = float(cfg.initial_threshold)
         self._scores: deque[float] = deque(maxlen=window_size)
         self._last_change_ts: float = 0.0
+        self._frozen: bool = False
+        self._freeze_reason: str = ""
         self._skipped_drift = 0
         self._skipped_cooldown = 0
         self._skipped_history = 0
@@ -45,6 +47,8 @@ class ThresholdController:
         if np.isfinite(score):
             self._scores.append(float(score))
         if not self.cfg.enabled:
+            return self.threshold
+        if self._frozen:
             return self.threshold
 
         # Safety: do not adapt during suspected drift.
@@ -101,6 +105,8 @@ class ThresholdController:
     def stats(self) -> dict[str, int | float]:
         return {
             "score_history_len": len(self._scores),
+            "frozen": int(self._frozen),
+            "freeze_reason": self._freeze_reason,
             "updates_applied": self._updates_applied,
             "skipped_drift": self._skipped_drift,
             "skipped_cooldown": self._skipped_cooldown,
@@ -109,3 +115,38 @@ class ThresholdController:
             "bounds_limited": self._bounds_limited,
             "min_history": int(self.cfg.min_history),
         }
+
+    def freeze(self, reason: str) -> None:
+        # Why: circuit breaker and admin controls need an explicit adaptation stop.
+        self._frozen = True
+        self._freeze_reason = str(reason)
+
+    def unfreeze(self) -> None:
+        self._frozen = False
+        self._freeze_reason = ""
+
+    @property
+    def is_frozen(self) -> bool:
+        return self._frozen
+
+    def snapshot_state(self) -> dict[str, object]:
+        return {
+            "threshold": float(self.threshold),
+            "scores": list(self._scores),
+            "last_change_ts": float(self._last_change_ts),
+            "frozen": bool(self._frozen),
+            "freeze_reason": self._freeze_reason,
+            "stats": self.stats(),
+        }
+
+    def load_snapshot_state(self, state: dict[str, object]) -> None:
+        self.threshold = float(state.get("threshold", self.threshold))
+        self._scores.clear()
+        for s in state.get("scores", []):  # type: ignore[union-attr]
+            if np.isfinite(float(s)):
+                self._scores.append(float(s))
+        self._last_change_ts = float(state.get("last_change_ts", 0.0))
+        if bool(state.get("frozen", False)):
+            self.freeze(str(state.get("freeze_reason", "restored")))
+        else:
+            self.unfreeze()
