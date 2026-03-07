@@ -1,0 +1,172 @@
+# HELP python_gc_objects_collected_total Objects collected during gc
+# TYPE python_gc_objects_collected_total counter
+python_gc_objects_collected_total{generation="0"} 2353.0
+python_gc_objects_collected_total{generation="1"} 4900.0
+python_gc_objects_collected_total{generation="2"} 904.0
+# HELP python_gc_objects_uncollectable_total Uncollectable objects found during GC
+# TYPE python_gc_objects_uncollectable_total counter
+python_gc_objects_uncollectable_total{generation="0"} 0.0
+python_gc_objects_uncollectable_total{generation="1"} 0.0
+python_gc_objects_uncollectable_total{generation="2"} 0.0
+# HELP python_gc_collections_total Number of times this generation was collected
+# TYPE python_gc_collections_total counter
+python_gc_collections_total{generation="0"} 496.0
+python_gc_collections_total{generation="1"} 45.0
+python_gc_collections_total{generation="2"} 4.0
+# HELP python_info Python platform information
+# TYPE python_info gauge
+python_info{implementation="CPython",major="3",minor="11",patchlevel="15",version="3.11.15"} 1.0
+# HELP events_ingested_total Total events ingested
+# TYPE events_ingested_total counter
+events_ingested_total{source="stream"} 0.0
+events_ingested_total{source="api"} 16817.0
+# HELP events_ingested_created Total events ingested
+# TYPE events_ingested_created gauge
+events_ingested_created{source="stream"} 1.772883938659096e+09
+events_ingested_created{source="api"} 1.772883938659102e+09
+# HELP events_scored_total Total events scored
+# TYPE events_scored_total counter
+events_scored_total 15317.0
+# HELP events_scored_created Total events scored
+# TYPE events_scored_created gauge
+events_scored_created 1.7728839386590772e+09
+# HELP alerts_emitted_total Total alerts emitted
+# TYPE alerts_emitted_total counter
+alerts_emitted_total{severity="low"} 488.0
+alerts_emitted_total{severity="medium"} 1736.0
+alerts_emitted_total{severity="high"} 9871.0
+# HELP alerts_emitted_created Total alerts emitted
+# TYPE alerts_emitted_created gauge
+alerts_emitted_created{severity="low"} 1.772883938659106e+09
+alerts_emitted_created{severity="medium"} 1.772883938659111e+09
+alerts_emitted_created{severity="high"} 1.772883938659115e+09
+# HELP errors_total Total errors
+# TYPE errors_total counter
+errors_total{component="stream"} 0.0
+errors_total{component="feature"} 0.0
+errors_total{component="model"} 0.0
+errors_total{component="drift"} 0.0
+errors_total{component="api"} 0.0
+# HELP errors_created Total errors
+# TYPE errors_created gauge
+errors_created{component="stream"} 1.772883938659117e+09
+errors_created{component="feature"} 1.7728839386591208e+09
+errors_created{component="model"} 1.772883938659126e+09
+errors_created{component="drift"} 1.7728839386591308e+09
+errors_created{component="api"} 1.772883938659133e+09
+# HELP score_latency_seconds End-to-end scoring latency seconds
+# TYPE score_latency_seconds histogram
+score_latency_seconds_bucket{le="0.001"} 5318.0
+score_latency_seconds_bucket{le="0.0025"} 15298.0
+score_latency_seconds_bucket{le="0.005"} 15310.0
+score_latency_seconds_bucket{le="0.01"} 15313.0
+score_latency_seconds_bucket{le="0.025"} 15316.0
+score_latency_seconds_bucket{le="0.05"} 15317.0
+score_latency_seconds_bucket{le="0.1"} 15317.0
+score_latency_seconds_bucket{le="0.25"} 15317.0
+score_latency_seconds_bucket{le="0.5"} 15317.0
+score_latency_seconds_bucket{le="1.0"} 15317.0
+score_latency_seconds_bucket{le="2.5"} 15317.0
+score_latency_seconds_bucket{le="5.0"} 15317.0
+score_latency_seconds_bucket{le="+Inf"} 15317.0
+score_latency_seconds_count 15317.0
+score_latency_seconds_sum 15.863212950949674
+# HELP score_latency_seconds_created End-to-end scoring latency seconds
+# TYPE score_latency_seconds_created gauge
+score_latency_seconds_created 1.772883938659141e+09
+# HELP feature_latency_seconds Feature computation latency seconds
+# TYPE feature_latency_seconds histogram
+feature_latency_seconds_bucket{le="0.0005"} 16815.0
+feature_latency_seconds_bucket{le="0.001"} 16816.0
+feature_latency_seconds_bucket{le="0.0025"} 16817.0
+feature_latency_seconds_bucket{le="0.005"} 16817.0
+feature_latency_seconds_bucket{le="0.01"} 16817.0
+feature_latency_seconds_bucket{le="0.025"} 16817.0
+feature_latency_seconds_bucket{le="0.05"} 16817.0
+feature_latency_seconds_bucket{le="0.1"} 16817.0
+feature_latency_seconds_bucket{le="0.25"} 16817.0
+feature_latency_seconds_bucket{le="0.5"} 16817.0
+feature_latency_seconds_bucket{le="1.0"} 16817.0
+feature_latency_seconds_bucket{le="+Inf"} 16817.0
+feature_latency_seconds_count 16817.0
+feature_latency_seconds_sum 0.33568430732702836
+# HELP feature_latency_seconds_created Feature computation latency seconds
+# TYPE feature_latency_seconds_created gauge
+feature_latency_seconds_created 1.772883938659224e+09
+# HELP drift_latency_seconds Drift computation latency seconds
+# TYPE drift_latency_seconds histogram
+drift_latency_seconds_bucket{le="0.001"} 15269.0
+drift_latency_seconds_bucket{le="0.0025"} 15316.0
+drift_latency_seconds_bucket{le="0.005"} 15317.0
+drift_latency_seconds_bucket{le="0.01"} 15317.0
+drift_latency_seconds_bucket{le="0.025"} 15317.0
+drift_latency_seconds_bucket{le="0.05"} 15317.0
+drift_latency_seconds_bucket{le="0.1"} 15317.0
+drift_latency_seconds_bucket{le="0.25"} 15317.0
+drift_latency_seconds_bucket{le="0.5"} 15317.0
+drift_latency_seconds_bucket{le="1.0"} 15317.0
+drift_latency_seconds_bucket{le="2.5"} 15317.0
+drift_latency_seconds_bucket{le="5.0"} 15317.0
+drift_latency_seconds_bucket{le="+Inf"} 15317.0
+drift_latency_seconds_count 15317.0
+drift_latency_seconds_sum 0.11579378791793715
+# HELP drift_latency_seconds_created Drift computation latency seconds
+# TYPE drift_latency_seconds_created gauge
+drift_latency_seconds_created 1.7728839386592379e+09
+# HELP current_threshold Current anomaly threshold
+# TYPE current_threshold gauge
+current_threshold 0.88
+# HELP drift_active 1 if drift suspected, else 0
+# TYPE drift_active gauge
+drift_active 0.0
+# HELP anomaly_rate_recent Recent anomaly rate (windowed)
+# TYPE anomaly_rate_recent gauge
+anomaly_rate_recent 0.9955
+# HELP drift_alert_total Total scored events evaluated for drift
+# TYPE drift_alert_total counter
+drift_alert_total 66.0
+# HELP drift_alert_created Total scored events evaluated for drift
+# TYPE drift_alert_created gauge
+drift_alert_created 1.772883938659265e+09
+# HELP drift_alert_positive_total Total adaptive drift alerts
+# TYPE drift_alert_positive_total counter
+drift_alert_positive_total 0.0
+# HELP drift_alert_positive_created Total adaptive drift alerts
+# TYPE drift_alert_positive_created gauge
+drift_alert_positive_created 1.772883938659269e+09
+# HELP drift_alert_fixed_positive_total Total fixed-baseline drift alerts
+# TYPE drift_alert_fixed_positive_total counter
+drift_alert_fixed_positive_total 15.0
+# HELP drift_alert_fixed_positive_created Total fixed-baseline drift alerts
+# TYPE drift_alert_fixed_positive_created gauge
+drift_alert_fixed_positive_created 1.772883938659272e+09
+# HELP drift_true_label_total Total events with ground-truth drift label
+# TYPE drift_true_label_total counter
+drift_true_label_total 31.0
+# HELP drift_true_label_created Total events with ground-truth drift label
+# TYPE drift_true_label_created gauge
+drift_true_label_created 1.772883938659275e+09
+# HELP drift_true_positive_total Adaptive drift true positives
+# TYPE drift_true_positive_total counter
+drift_true_positive_total 0.0
+# HELP drift_true_positive_created Adaptive drift true positives
+# TYPE drift_true_positive_created gauge
+drift_true_positive_created 1.7728839386592782e+09
+# HELP drift_false_positive_total Adaptive drift false positives
+# TYPE drift_false_positive_total counter
+drift_false_positive_total 0.0
+# HELP drift_false_positive_created Adaptive drift false positives
+# TYPE drift_false_positive_created gauge
+drift_false_positive_created 1.7728839386592808e+09
+# HELP drift_precision Adaptive drift precision
+# TYPE drift_precision gauge
+drift_precision 0.0
+# HELP drift_recall Adaptive drift recall
+# TYPE drift_recall gauge
+drift_recall 0.0
+# HELP cpu_usage Process CPU usage percent (best-effort)
+# TYPE cpu_usage gauge
+cpu_usage 0.0
+# HELP memory_usage Process memory usage in bytes (best-effort)
+# TYPE memory_usage gauge
+memory_usage 0.0

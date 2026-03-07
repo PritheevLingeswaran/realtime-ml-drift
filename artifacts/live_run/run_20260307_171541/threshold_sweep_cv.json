@@ -1,0 +1,170 @@
+{
+  "cv_points": 42,
+  "holdout_points": 13,
+  "k_folds": 2,
+  "best": {
+    "params": {
+      "warning_enter_mult": 0.8,
+      "warning_exit_mult": 0.6,
+      "critical_enter_mult": 1.0,
+      "critical_exit_mult": 0.8,
+      "warning_vote_fraction": 0.2,
+      "critical_vote_fraction": 0.35,
+      "warning_consecutive": 1,
+      "critical_consecutive": 3,
+      "cooldown_windows": 2
+    },
+    "cv_mean": {
+      "precision": 1.0,
+      "recall": 0.2863636363636364,
+      "f1": 0.44505494505494503,
+      "false_alert_rate": 0.0
+    },
+    "holdout_metrics": {
+      "tp": 0,
+      "fp": 1,
+      "tn": 6,
+      "fn": 6,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 1.0
+    },
+    "objective": -0.5909690309690311
+  },
+  "recommended_config": {
+    "drift": {
+      "warning_enter_mult": 0.8,
+      "warning_exit_mult": 0.6,
+      "critical_enter_mult": 1.0,
+      "critical_exit_mult": 0.8,
+      "warning_vote_fraction": 0.2,
+      "critical_vote_fraction": 0.35,
+      "warning_consecutive": 1,
+      "critical_consecutive": 3,
+      "cooldown_windows": 2
+    }
+  },
+  "top5_cv": [
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.35,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 2
+      },
+      "cv_mean": {
+        "precision": 1.0,
+        "recall": 0.2863636363636364,
+        "f1": 0.44505494505494503,
+        "false_alert_rate": 0.0
+      },
+      "cv_scores": [
+        -0.5384615384615385,
+        -0.6259740259740261
+      ],
+      "objective": -0.5909690309690311
+    },
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.35,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 4
+      },
+      "cv_mean": {
+        "precision": 1.0,
+        "recall": 0.2863636363636364,
+        "f1": 0.44505494505494503,
+        "false_alert_rate": 0.0
+      },
+      "cv_scores": [
+        -0.5384615384615385,
+        -0.6259740259740261
+      ],
+      "objective": -0.5909690309690311
+    },
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.35,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 6
+      },
+      "cv_mean": {
+        "precision": 1.0,
+        "recall": 0.2863636363636364,
+        "f1": 0.44505494505494503,
+        "false_alert_rate": 0.0
+      },
+      "cv_scores": [
+        -0.5384615384615385,
+        -0.6259740259740261
+      ],
+      "objective": -0.5909690309690311
+    },
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.35,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 8
+      },
+      "cv_mean": {
+        "precision": 1.0,
+        "recall": 0.2863636363636364,
+        "f1": 0.44505494505494503,
+        "false_alert_rate": 0.0
+      },
+      "cv_scores": [
+        -0.5384615384615385,
+        -0.6259740259740261
+      ],
+      "objective": -0.5909690309690311
+    },
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.35,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 10
+      },
+      "cv_mean": {
+        "precision": 1.0,
+        "recall": 0.2863636363636364,
+        "f1": 0.44505494505494503,
+        "false_alert_rate": 0.0
+      },
+      "cv_scores": [
+        -0.5384615384615385,
+        -0.6259740259740261
+      ],
+      "objective": -0.5909690309690311
+    }
+  ]
+}

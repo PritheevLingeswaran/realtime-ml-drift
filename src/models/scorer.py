@@ -68,3 +68,18 @@ class ModelScorer:
             raw = -raw  # anomaly-like
         norm = float(self.normalizer.transform(raw)[0])
         return norm, float(raw[0])
+
+    def score_batch(self, feats_batch: list[dict[str, float]]) -> list[tuple[float, float]]:
+        """Vectorized scoring for a batch of already-featurized events.
+
+        Why: model inference is one of the highest-frequency steps; batching
+        reduces Python overhead while preserving per-event outputs.
+        """
+        if not feats_batch:
+            return []
+        x = np.vstack([self._vec(feats) for feats in feats_batch])
+        raw = self.model.score(x).reshape(-1)
+        if self.model_type == "isolation_forest":
+            raw = -raw  # anomaly-like
+        norm = self.normalizer.transform(raw)
+        return [(float(norm[i]), float(raw[i])) for i in range(len(feats_batch))]

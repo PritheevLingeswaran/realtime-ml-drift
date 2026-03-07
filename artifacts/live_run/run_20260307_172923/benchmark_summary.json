@@ -1,0 +1,17 @@
+{
+  "run_started_ts": 1772884763.363214,
+  "run_finished_ts": 1772884794.066377,
+  "duration_seconds_target": 27,
+  "duration_seconds_actual": 27.688,
+  "base_url": "http://127.0.0.1:8000",
+  "requests_total": 21014,
+  "requests_ok": 21014,
+  "requests_error": 0,
+  "throughput_rps": 758.944,
+  "latency_p50_ms": 22.644,
+  "latency_p95_ms": 25.836,
+  "latency_p99_ms": 49.205,
+  "error_rate_percent": 0.0,
+  "request_log": "artifacts/live_run/run_20260307_172923/requests.csv",
+  "resource_log": "artifacts/live_run/run_20260307_172923/system_metrics.csv"
+}

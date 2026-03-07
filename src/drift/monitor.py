@@ -23,6 +23,8 @@ class DriftConfig:
     current_window_events: int
     window_size: int
     evaluation_interval: int
+    check_interval_events: int
+    periodic_expensive_checks_enabled: bool
     min_samples: int
     feature_ks_p: float
     feature_psi: float
@@ -155,6 +157,13 @@ class DriftMonitor:
         self._eval_tick += 1
         self._state.last_update_ts = ts
 
+        # ADWIN update is cheap and can run on every event even when expensive
+        # distribution checks are periodic.
+        if self._adwin is not None:
+            self._state.adwin_detected = bool(self._adwin.update(float(score)))
+        else:
+            self._state.adwin_detected = False
+
         if len(self._cur_scores) < self.cfg.min_samples:
             self._state.drift_active = False
             self._state.drift_fixed_active = False
@@ -162,8 +171,15 @@ class DriftMonitor:
             self._state.drift_evaluated = False
             return self._state
 
-        # CPU guard: evaluate every N events rather than every event.
-        if (self._eval_tick % max(1, self.cfg.evaluation_interval)) != 0:
+        # CPU guard:
+        # - legacy mode uses evaluation_interval
+        # - periodic mode uses check_interval_events for expensive KS/PSI only
+        interval = (
+            int(self.cfg.check_interval_events)
+            if bool(self.cfg.periodic_expensive_checks_enabled)
+            else int(self.cfg.evaluation_interval)
+        )
+        if (self._eval_tick % max(1, interval)) != 0:
             self._state.drift_active = False
             self._state.drift_fixed_active = False
             self._state.drift_warning_active = False
@@ -258,12 +274,6 @@ class DriftMonitor:
             float(self.cfg.norm_cap),
         )
         pred_shift_norm = 0.5 * pred_psi_norm + 0.5 * pred_ks_norm
-
-        # Streaming mean shift detector on scores (fast early warning).
-        if self._adwin is not None:
-            self._state.adwin_detected = bool(self._adwin.update(float(score)))
-        else:
-            self._state.adwin_detected = False
 
         feat_count = max(1, len(self.feature_names))
         vote_ratio = triggered_feature_count / feat_count

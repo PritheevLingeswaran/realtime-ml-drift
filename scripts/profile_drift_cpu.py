@@ -29,6 +29,8 @@ def make_monitor(evaluation_interval: int) -> DriftMonitor:
         current_window_events=800,
         window_size=1000,
         evaluation_interval=evaluation_interval,
+        check_interval_events=200,
+        periodic_expensive_checks_enabled=False,
         min_samples=200,
         feature_ks_p=0.001,
         feature_psi=0.25,

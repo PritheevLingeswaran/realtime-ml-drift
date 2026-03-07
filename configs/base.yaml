@@ -9,6 +9,11 @@ streaming:
   event_rate_per_sec: 15
   max_events: 0              # 0 => run forever
   entity_cardinality: 800
+  micro_batch:
+    # Off by default for behavior parity; enable to reduce CPU via batched scoring.
+    enabled: false
+    batch_size: 64
+    flush_ms: 50
   drift:
     enabled: true
     drift_start_event: 4000
@@ -40,6 +45,9 @@ drift:
   current_window_events: 800
   window_size: 1000
   evaluation_interval: 200
+  # Optional periodic expensive checks (KS/PSI) to cut CPU.
+  periodic_expensive_checks_enabled: false
+  check_interval_events: 200
   min_samples: 200
   threshold_method: adaptive   # adaptive | fixed
   threshold_k: 1.0
@@ -77,12 +85,13 @@ drift:
 
 adaptation:
   enabled: true
-  target_anomaly_rate: 0.015
-  initial_threshold: 0.85
-  min_threshold: 0.60
-  max_threshold: 0.99
-  max_step: 0.03
-  cooldown_seconds: 180
+  target_anomaly_rate: 0.01
+  min_history: 200
+  initial_threshold: 0.9972
+  min_threshold: 0.9971
+  max_threshold: 0.999
+  max_step: 0.0005
+  cooldown_seconds: 5
 
 monitoring:
   structured_logs: true
@@ -97,3 +106,20 @@ api:
   port: 8000
   start_background_stream: true
   max_alerts_returned: 200
+
+benchmarking:
+  # Production default: keep anomaly rate in a resume-defensible band (0.5%-2%).
+  target_anomaly_rate: 0.01
+  # Optional detector overrides for benchmark passes (null => keep runtime defaults).
+  min_samples: null
+  window_size: null
+  evaluation_interval: null
+  drift_scenario:
+    enabled: true
+    drift_start_event: 4000
+    drift_type: mean_shift_amount
+  performance_compare_enabled: false
+  micro_batch_size: 64
+  performance_compare_target_eps: 900
+  # Safety valve for alert storms in benchmark reporting.
+  max_alerts_per_minute: 120

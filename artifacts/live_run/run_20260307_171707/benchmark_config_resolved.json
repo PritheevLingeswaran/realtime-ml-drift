@@ -1,0 +1,43 @@
+{
+  "base_url": "http://127.0.0.1:8000",
+  "duration_minutes": 0.3,
+  "warmup_seconds": 3,
+  "concurrency": 5,
+  "max_connections": 100,
+  "pace_sleep_ms": 0,
+  "fixed_threshold": 0.88,
+  "resource_sample_seconds": 1.0,
+  "endpoint_weights": {
+    "/score": 0.5,
+    "/predict": 0.3,
+    "/detect_drift": 0.2
+  },
+  "seed": 42,
+  "entity_cardinality": 2000,
+  "phases": [
+    {
+      "name": "normal",
+      "duration_seconds": 4,
+      "ground_truth_drift": 0,
+      "pattern": "baseline"
+    },
+    {
+      "name": "gradual_drift",
+      "duration_seconds": 4,
+      "ground_truth_drift": 1,
+      "pattern": "gradual"
+    },
+    {
+      "name": "sudden_drift",
+      "duration_seconds": 4,
+      "ground_truth_drift": 1,
+      "pattern": "sudden"
+    },
+    {
+      "name": "noisy_non_drift",
+      "duration_seconds": 4,
+      "ground_truth_drift": 0,
+      "pattern": "noisy"
+    }
+  ]
+}

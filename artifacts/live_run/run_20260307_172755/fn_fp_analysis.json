@@ -1,0 +1,3034 @@
+{
+  "FP": [
+    {
+      "timestamp": 1772884678.652517,
+      "request_id": "20badf481ca835a703c3854b",
+      "endpoint": "/score",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.053091,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.377891,
+      "ks_component": 0.122533,
+      "prediction_component": 0.552667,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.225943299218592
+        },
+        "amt_sum_5m": {
+          "ks": 0.857293432160804,
+          "psi": 5.700876919821747,
+          "mean_shift_z": 6.92911073322834
+        },
+        "amt_mean_5m": {
+          "ks": 0.787007,
+          "psi": 4.501080359127856,
+          "mean_shift_z": 1.4922651935857953
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.979071644477609
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 7.964936753822556
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.22514094014424
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19699299999999997,
+          "psi": 1.5347845409434966,
+          "mean_shift_z": 0.34878248819699775
+        }
+      }
+    },
+    {
+      "timestamp": 1772884679.159692,
+      "request_id": "89c0498135e70de4a021c890",
+      "endpoint": "/predict",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.070498,
+      "vote_ratio": 0.75,
+      "threshold": 0.819046,
+      "psi_component": 0.394966,
+      "ks_component": 0.122782,
+      "prediction_component": 0.55275,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.488644692312006
+        },
+        "amt_sum_5m": {
+          "ks": 0.8568049669631512,
+          "psi": 5.6887712259472885,
+          "mean_shift_z": 7.194627777476694
+        },
+        "amt_mean_5m": {
+          "ks": 0.791007,
+          "psi": 4.8190373834537565,
+          "mean_shift_z": 1.5088441902501137
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.133533178963959
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.15814939132352
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.301779990078258
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19999299999999998,
+          "psi": 2.3471907774059577,
+          "mean_shift_z": 0.34460492000622667
+        }
+      }
+    },
+    {
+      "timestamp": 1772884679.668479,
+      "request_id": "519658267917f1fba432ea87",
+      "endpoint": "/score",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.06132,
+      "vote_ratio": 0.625,
+      "threshold": 0.819046,
+      "psi_component": 0.385123,
+      "ks_component": 0.122906,
+      "prediction_component": 0.553291,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.419155936719555
+        },
+        "amt_sum_5m": {
+          "ks": 0.8638924296388543,
+          "psi": 5.896452417611253,
+          "mean_shift_z": 7.086401841991723
+        },
+        "amt_mean_5m": {
+          "ks": 0.793007,
+          "psi": 5.032678027429695,
+          "mean_shift_z": 1.5042332321869702
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.145667552462038
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.063237920270415
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.278058379384395
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19899299999999998,
+          "psi": 1.6513993491295236,
+          "mean_shift_z": 0.34374652206632517
+        }
+      }
+    },
+    {
+      "timestamp": 1772884680.171252,
+      "request_id": "246fe04a7a52cc04a562b05e",
+      "endpoint": "/score",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.060359,
+      "vote_ratio": 0.625,
+      "threshold": 0.819046,
+      "psi_component": 0.383771,
+      "ks_component": 0.122752,
+      "prediction_component": 0.553836,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.439494109088077
+        },
+        "amt_sum_5m": {
+          "ks": 0.8622236246851386,
+          "psi": 6.287332380905274,
+          "mean_shift_z": 7.196344255330505
+        },
+        "amt_mean_5m": {
+          "ks": 0.790007,
+          "psi": 4.732683226813892,
+          "mean_shift_z": 1.5111135096252295
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.116184085171672
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.012392489349109
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.2452130722698165
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19799299999999997,
+          "psi": 1.5784453147349367,
+          "mean_shift_z": 0.3435700549412729
+        }
+      }
+    },
+    {
+      "timestamp": 1772884680.682175,
+      "request_id": "c26c771b197aa492ff5269d6",
+      "endpoint": "/score",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.059225,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.382362,
+      "ks_component": 0.122813,
+      "prediction_component": 0.554049,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.602199488036256
+        },
+        "amt_sum_5m": {
+          "ks": 0.8655242413793104,
+          "psi": 6.06621406855236,
+          "mean_shift_z": 7.346341912350077
+        },
+        "amt_mean_5m": {
+          "ks": 0.787007,
+          "psi": 4.502507063384037,
+          "mean_shift_z": 1.5122793938520547
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.0524361099807
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.085270940336313
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.239738854417387
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19899299999999998,
+          "psi": 1.6513993491295236,
+          "mean_shift_z": 0.34202313445787175
+        }
+      }
+    },
+    {
+      "timestamp": 1772884681.199188,
+      "request_id": "ebac19472c8c928aa5e0b888",
+      "endpoint": "/score",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.061062,
+      "vote_ratio": 0.625,
+      "threshold": 0.819046,
+      "psi_component": 0.384107,
+      "ks_component": 0.123005,
+      "prediction_component": 0.55395,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.82761423178738
+        },
+        "amt_sum_5m": {
+          "ks": 0.8720442836218375,
+          "psi": 6.081019184391999,
+          "mean_shift_z": 7.558308786599899
+        },
+        "amt_mean_5m": {
+          "ks": 0.790007,
+          "psi": 4.73499029452946,
+          "mean_shift_z": 1.5232441637009075
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.097073209621617
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.224248451521216
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.270759422247822
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19899299999999998,
+          "psi": 1.6513993491295236,
+          "mean_shift_z": 0.33991031817417505
+        }
+      }
+    },
+    {
+      "timestamp": 1772884681.693426,
+      "request_id": "de2495326e160de115f88a07",
+      "endpoint": "/score",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.058827,
+      "vote_ratio": 0.625,
+      "threshold": 0.819046,
+      "psi_component": 0.382267,
+      "ks_component": 0.122836,
+      "prediction_component": 0.553725,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.812360602510987
+        },
+        "amt_sum_5m": {
+          "ks": 0.8666736666666667,
+          "psi": 6.039630778176269,
+          "mean_shift_z": 7.572355639331235
+        },
+        "amt_mean_5m": {
+          "ks": 0.787007,
+          "psi": 4.509988183531123,
+          "mean_shift_z": 1.528043661227732
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.072242404809812
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.136116371257618
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.303604729362402
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19899299999999998,
+          "psi": 1.6513993491295236,
+          "mean_shift_z": 0.34009289254538605
+        }
+      }
+    },
+    {
+      "timestamp": 1772884682.847257,
+      "request_id": "c50f8a2d1617a9a1407cf095",
+      "endpoint": "/predict",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.059429,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.38371,
+      "ks_component": 0.122411,
+      "prediction_component": 0.553307,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.631011898891662
+        },
+        "amt_sum_5m": {
+          "ks": 0.8610964941634242,
+          "psi": 7.140862240049502,
+          "mean_shift_z": 7.323273755878178
+        },
+        "amt_mean_5m": {
+          "ks": 0.786007,
+          "psi": 4.439855850538973,
+          "mean_shift_z": 1.508869748491072
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.00839068137977
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 7.829348938032407
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.16309980448337
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19399299999999997,
+          "psi": 1.4578639838707987,
+          "mean_shift_z": 0.34231937006688606
+        }
+      }
+    },
+    {
+      "timestamp": 1772884683.92945,
+      "request_id": "5e6d9e2de18fcd4efa7e145f",
+      "endpoint": "/predict",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.060742,
+      "vote_ratio": 0.625,
+      "threshold": 0.819046,
+      "psi_component": 0.384496,
+      "ks_component": 0.122926,
+      "prediction_component": 0.553321,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.930999941327366
+        },
+        "amt_sum_5m": {
+          "ks": 0.8669819009247027,
+          "psi": 6.049237407918364,
+          "mean_shift_z": 7.472526555098499
+        },
+        "amt_mean_5m": {
+          "ks": 0.791007,
+          "psi": 4.815947446250628,
+          "mean_shift_z": 1.4895905202196573
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.941351323001128
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 7.990359469283209
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.179522458040659
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19899299999999998,
+          "psi": 1.6513993491295236,
+          "mean_shift_z": 0.33980152836147076
+        }
+      }
+    },
+    {
+      "timestamp": 1772884684.469456,
+      "request_id": "24b465ece002876a22ac9155",
+      "endpoint": "/predict",
+      "phase": "normal",
+      "ground_truth_drift": 0,
+      "predicted_alert": 1,
+      "fused_score": 1.057229,
+      "vote_ratio": 0.625,
+      "threshold": 0.819046,
+      "psi_component": 0.380901,
+      "ks_component": 0.122805,
+      "prediction_component": 0.553524,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 9.093705320275546
+        },
+        "amt_sum_5m": {
+          "ks": 0.8688838606224628,
+          "psi": 6.0437433825087865,
+          "mean_shift_z": 7.654240496689453
+        },
+        "amt_mean_5m": {
+          "ks": 0.789007,
+          "psi": 4.646235579628617,
+          "mean_shift_z": 1.4992142472272338
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.9954751553170804
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 8.095440026520574
+        },
+        "uniq_country_5m": {
+          "ks": 0.775008,
+          "psi": 11.665498157844423,
+          "mean_shift_z": 5.272584161531966
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19699299999999997,
+          "psi": 1.5347845409434966,
+          "mean_shift_z": 0.33872417770541957
+        }
+      }
+    }
+  ],
+  "FN": [
+    {
+      "timestamp": 1772884684.723793,
+      "request_id": "88e9ccf4fdeaba1780d0b48e",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.956944,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.282932,
+      "ks_component": 0.122114,
+      "prediction_component": 0.551899,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7715114965034965,
+          "psi": 5.315081857715693,
+          "mean_shift_z": 8.800496668629348
+        },
+        "amt_sum_5m": {
+          "ks": 0.8488629892328399,
+          "psi": 5.472409217102471,
+          "mean_shift_z": 7.4163603892936445
+        },
+        "amt_mean_5m": {
+          "ks": 0.782007,
+          "psi": 4.21353516235212,
+          "mean_shift_z": 1.4977794196183554
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.8771282746559
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7720318095238096,
+          "psi": 5.443457397136471,
+          "mean_shift_z": 7.785282897900609
+        },
+        "uniq_country_5m": {
+          "ks": 0.7717925659163988,
+          "psi": 5.381912267793776,
+          "mean_shift_z": 5.133903975937078
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19799299999999997,
+          "psi": 1.5784453147349367,
+          "mean_shift_z": 0.34194884090239847
+        }
+      }
+    },
+    {
+      "timestamp": 1772884684.969317,
+      "request_id": "fd876c522340ba4d695bc0a5",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.93278,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.263813,
+      "ks_component": 0.121383,
+      "prediction_component": 0.547584,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7664901124361159,
+          "psi": 4.594136777621185,
+          "mean_shift_z": 8.554743752509705
+        },
+        "amt_sum_5m": {
+          "ks": 0.8351921851851852,
+          "psi": 5.048629229237035,
+          "mean_shift_z": 7.2048249901383326
+        },
+        "amt_mean_5m": {
+          "ks": 0.774007,
+          "psi": 3.878863855038592,
+          "mean_shift_z": 1.4870537868909222
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.8122786177118053
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7677929927849928,
+          "psi": 4.730410524567497,
+          "mean_shift_z": 7.495463941649167
+        },
+        "uniq_country_5m": {
+          "ks": 0.7674092158054712,
+          "psi": 4.687978702315176,
+          "mean_shift_z": 4.989749572489759
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19799299999999997,
+          "psi": 1.5784453147349367,
+          "mean_shift_z": 0.3445141029445728
+        }
+      }
+    },
+    {
+      "timestamp": 1772884685.228503,
+      "request_id": "bc7460d326d7e91b95506f48",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.927404,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.263155,
+      "ks_component": 0.121193,
+      "prediction_component": 0.543055,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7666885324459235,
+          "psi": 4.6135502309313825,
+          "mean_shift_z": 8.36322596270612
+        },
+        "amt_sum_5m": {
+          "ks": 0.8281115751633987,
+          "psi": 5.0257758209317895,
+          "mean_shift_z": 7.018055642098872
+        },
+        "amt_mean_5m": {
+          "ks": 0.774007,
+          "psi": 3.877994463585468,
+          "mean_shift_z": 1.4780683682421627
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.707531040835244
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7679158014184397,
+          "psi": 4.744445438032429,
+          "mean_shift_z": 7.302251304148204
+        },
+        "uniq_country_5m": {
+          "ks": 0.7676224756277696,
+          "psi": 4.711297598568383,
+          "mean_shift_z": 4.900337347566739
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19699299999999997,
+          "psi": 1.5347845409434966,
+          "mean_shift_z": 0.3468203390288348
+        }
+      }
+    },
+    {
+      "timestamp": 1772884685.487092,
+      "request_id": "207683a78c81a4891f160db6",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.90797,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.250354,
+      "ks_component": 0.120476,
+      "prediction_component": 0.537141,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7606539330143541,
+          "psi": 4.157710832503883,
+          "mean_shift_z": 8.134421523560244
+        },
+        "amt_sum_5m": {
+          "ks": 0.8142195480153649,
+          "psi": 4.6733469879385625,
+          "mean_shift_z": 6.811803324222412
+        },
+        "amt_mean_5m": {
+          "ks": 0.770007,
+          "psi": 3.744104825227172,
+          "mean_shift_z": 1.4646744647404728
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.6241813499087248
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7628128780487805,
+          "psi": 4.295515816499103,
+          "mean_shift_z": 7.073446865002327
+        },
+        "uniq_country_5m": {
+          "ks": 0.7621874871794873,
+          "psi": 4.253394493759041,
+          "mean_shift_z": 4.763481901255994
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19699299999999997,
+          "psi": 1.5347845409434966,
+          "mean_shift_z": 0.34930197475919017
+        }
+      }
+    },
+    {
+      "timestamp": 1772884686.251625,
+      "request_id": "b31ba7a61729ca4d2daa0986",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.8645,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.212405,
+      "ks_component": 0.119141,
+      "prediction_component": 0.532954,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7451806844583988,
+          "psi": 3.516329884065646,
+          "mean_shift_z": 8.01747703244124
+        },
+        "amt_sum_5m": {
+          "ks": 0.8104929335038363,
+          "psi": 4.286601477122256,
+          "mean_shift_z": 6.862622221022344
+        },
+        "amt_mean_5m": {
+          "ks": 0.764007,
+          "psi": 3.5739065798638503,
+          "mean_shift_z": 1.4967807468676582
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.724288529998702
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7498090610079576,
+          "psi": 3.6681723622239737,
+          "mean_shift_z": 6.942943592304309
+        },
+        "uniq_country_5m": {
+          "ks": 0.7485824089012517,
+          "psi": 3.6256482736635745,
+          "mean_shift_z": 4.677719154901261
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19299299999999997,
+          "psi": 0.7096837752403958,
+          "mean_shift_z": 0.34579570843270807
+        }
+      }
+    },
+    {
+      "timestamp": 1772884686.507825,
+      "request_id": "178d39b3f05b18d7a2841ab7",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.850004,
+      "vote_ratio": 0.375,
+      "threshold": 0.819046,
+      "psi_component": 0.202677,
+      "ks_component": 0.118258,
+      "prediction_component": 0.529069,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7359455,
+          "psi": 3.2672012062673312,
+          "mean_shift_z": 7.968326449217311
+        },
+        "amt_sum_5m": {
+          "ks": 0.803068224489796,
+          "psi": 4.077796109778968,
+          "mean_shift_z": 6.8263557672781
+        },
+        "amt_mean_5m": {
+          "ks": 0.758007,
+          "psi": 3.425256146013513,
+          "mean_shift_z": 1.4835854594797906
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.712818981875203
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7420264696569921,
+          "psi": 3.424439356159554,
+          "mean_shift_z": 6.903962095264642
+        },
+        "uniq_country_5m": {
+          "ks": 0.7401890584958217,
+          "psi": 3.3744238637069164,
+          "mean_shift_z": 4.630275933513536
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19199299999999997,
+          "psi": 0.6660320669141209,
+          "mean_shift_z": 0.3433135041222635
+        }
+      }
+    },
+    {
+      "timestamp": 1772884686.763404,
+      "request_id": "5183f063ac5d548152ba2fca",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.847634,
+      "vote_ratio": 0.375,
+      "threshold": 0.819046,
+      "psi_component": 0.202883,
+      "ks_component": 0.118298,
+      "prediction_component": 0.526452,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7383253843700159,
+          "psi": 3.3260036121896164,
+          "mean_shift_z": 7.966631601519933
+        },
+        "amt_sum_5m": {
+          "ks": 0.8025711025641026,
+          "psi": 4.07138180865252,
+          "mean_shift_z": 6.884490655143728
+        },
+        "amt_mean_5m": {
+          "ks": 0.756007,
+          "psi": 3.3848839102070203,
+          "mean_shift_z": 1.5088255741944867
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.7900457099037825
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7440106954177897,
+          "psi": 3.4812851603015926,
+          "mean_shift_z": 6.870065141317104
+        },
+        "uniq_country_5m": {
+          "ks": 0.7428850949720671,
+          "psi": 3.4486571571185882,
+          "mean_shift_z": 4.597430626398958
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19099299999999997,
+          "psi": 0.6345002812474301,
+          "mean_shift_z": 0.3405134972996699
+        }
+      }
+    },
+    {
+      "timestamp": 1772884687.019235,
+      "request_id": "bd9ca8ae3c00374d1a2871a3",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.851103,
+      "vote_ratio": 0.375,
+      "threshold": 0.819046,
+      "psi_component": 0.20631,
+      "ks_component": 0.118532,
+      "prediction_component": 0.526261,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7435614591194969,
+          "psi": 3.4681395334434697,
+          "mean_shift_z": 7.854771653493061
+        },
+        "amt_sum_5m": {
+          "ks": 0.8022912639593909,
+          "psi": 4.193922726989695,
+          "mean_shift_z": 6.733774139058429
+        },
+        "amt_mean_5m": {
+          "ks": 0.756007,
+          "psi": 3.3825618533234616,
+          "mean_shift_z": 1.5014996770781288
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.6458941221211636
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7482342382864793,
+          "psi": 3.6139004308413276,
+          "mean_shift_z": 6.768374279474493
+        },
+        "uniq_country_5m": {
+          "ks": 0.7473454827109267,
+          "psi": 3.5845199700882175,
+          "mean_shift_z": 4.529915272885657
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18999299999999997,
+          "psi": 0.6139603975003252,
+          "mean_shift_z": 0.33648054131918875
+        }
+      }
+    },
+    {
+      "timestamp": 1772884687.780639,
+      "request_id": "e70afe36f687413c6662cf49",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.867289,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.219914,
+      "ks_component": 0.119562,
+      "prediction_component": 0.527813,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7551303241590215,
+          "psi": 3.877434373907325,
+          "mean_shift_z": 7.746301400860942
+        },
+        "amt_sum_5m": {
+          "ks": 0.8069252389937107,
+          "psi": 4.431122666405481,
+          "mean_shift_z": 6.53176651361005
+        },
+        "amt_mean_5m": {
+          "ks": 0.761007,
+          "psi": 3.4957180342236667,
+          "mean_shift_z": 1.4899460171977188
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.5704543934808695
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7577666206896552,
+          "psi": 4.000824494560755,
+          "mean_shift_z": 6.680242199210896
+        },
+        "uniq_country_5m": {
+          "ks": 0.7567751809256662,
+          "psi": 3.9525144695268146,
+          "mean_shift_z": 4.628451194229393
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19299299999999997,
+          "psi": 0.6908591499481938,
+          "mean_shift_z": 0.34050238873849153
+        }
+      }
+    },
+    {
+      "timestamp": 1772884688.053482,
+      "request_id": "883c43db9ec2acb0a9e5c192",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.871279,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.22417,
+      "ks_component": 0.119678,
+      "prediction_component": 0.527431,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7569628872180452,
+          "psi": 3.961472766997865,
+          "mean_shift_z": 7.7378271623740575
+        },
+        "amt_sum_5m": {
+          "ks": 0.8006359308176101,
+          "psi": 4.44795322998227,
+          "mean_shift_z": 6.556498681844411
+        },
+        "amt_mean_5m": {
+          "ks": 0.762007,
+          "psi": 3.5223359592205177,
+          "mean_shift_z": 1.490055021992812
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.549801921490336
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7594033185955787,
+          "psi": 4.086472692204787,
+          "mean_shift_z": 6.663293722237127
+        },
+        "uniq_country_5m": {
+          "ks": 0.7582949080779945,
+          "psi": 4.027619084857037,
+          "mean_shift_z": 4.635750151365966
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19499299999999997,
+          "psi": 0.7660499174226763,
+          "mean_shift_z": 0.34359537189902334
+        }
+      }
+    },
+    {
+      "timestamp": 1772884688.328431,
+      "request_id": "dbeddc737bff4d61a7f25ff3",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.879531,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.230402,
+      "ks_component": 0.120104,
+      "prediction_component": 0.529025,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7583413333333333,
+          "psi": 4.030010887216441,
+          "mean_shift_z": 7.802231374874377
+        },
+        "amt_sum_5m": {
+          "ks": 0.8063361139240506,
+          "psi": 4.507613722441851,
+          "mean_shift_z": 6.678572915032967
+        },
+        "amt_mean_5m": {
+          "ks": 0.767007,
+          "psi": 3.659154391798093,
+          "mean_shift_z": 1.5110841621938467
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.6864268107993836
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7607592953367875,
+          "psi": 4.163972756842292,
+          "mean_shift_z": 6.70566491467155
+        },
+        "uniq_country_5m": {
+          "ks": 0.759601837535014,
+          "psi": 4.097419495666021,
+          "mean_shift_z": 4.653997544207399
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19699299999999997,
+          "psi": 0.8826574942766798,
+          "mean_shift_z": 0.34819273491645886
+        }
+      }
+    },
+    {
+      "timestamp": 1772884688.594409,
+      "request_id": "e8b8216c9b9cac7f5fe31a39",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.879759,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.228515,
+      "ks_component": 0.120154,
+      "prediction_component": 0.531091,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7582652298325723,
+          "psi": 4.026093283181866,
+          "mean_shift_z": 7.851381958098307
+        },
+        "amt_sum_5m": {
+          "ks": 0.8104929335038363,
+          "psi": 4.560874674492373,
+          "mean_shift_z": 6.796178968060918
+        },
+        "amt_mean_5m": {
+          "ks": 0.771007,
+          "psi": 3.7805463606533656,
+          "mean_shift_z": 1.5167271308396142
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.693695758874612
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.760553335085414,
+          "psi": 4.151771778086531,
+          "mean_shift_z": 6.742951564013839
+        },
+        "uniq_country_5m": {
+          "ks": 0.7597725429362882,
+          "psi": 4.106937463431532,
+          "mean_shift_z": 4.628451194229393
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19499299999999997,
+          "psi": 0.7660499174226763,
+          "mean_shift_z": 0.34421993863091355
+        }
+      }
+    },
+    {
+      "timestamp": 1772884688.871662,
+      "request_id": "e6be25d139a2e711a285b76e",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.878103,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.22613,
+      "ks_component": 0.119958,
+      "prediction_component": 0.532016,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7566873893129771,
+          "psi": 3.9483535843202735,
+          "mean_shift_z": 7.920870713690758
+        },
+        "amt_sum_5m": {
+          "ks": 0.8088645096277278,
+          "psi": 4.599130729297773,
+          "mean_shift_z": 6.910541129914398
+        },
+        "amt_mean_5m": {
+          "ks": 0.773007,
+          "psi": 3.84984161156551,
+          "mean_shift_z": 1.5306394728042796
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.6848951177791633
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7592392746386334,
+          "psi": 4.077523657715336,
+          "mean_shift_z": 6.8005763857246535
+        },
+        "uniq_country_5m": {
+          "ks": 0.7585470946502058,
+          "psi": 4.040686038459168,
+          "mean_shift_z": 4.604729583535531
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19299299999999997,
+          "psi": 0.7096837752403958,
+          "mean_shift_z": 0.34104720457993143
+        }
+      }
+    },
+    {
+      "timestamp": 1772884689.143721,
+      "request_id": "d76f3a2f5f83f6cb3e8961e2",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.86914,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.221122,
+      "ks_component": 0.119574,
+      "prediction_component": 0.528444,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7534363513097073,
+          "psi": 3.8058154571572875,
+          "mean_shift_z": 7.995444012375341
+        },
+        "amt_sum_5m": {
+          "ks": 0.8027307354085603,
+          "psi": 4.429977344493954,
+          "mean_shift_z": 6.991875917351906
+        },
+        "amt_mean_5m": {
+          "ks": 0.767007,
+          "psi": 3.6640804851150417,
+          "mean_shift_z": 1.529533166805926
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.779035857606126
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7564894814814815,
+          "psi": 3.939040333104405,
+          "mean_shift_z": 6.853116664343336
+        },
+        "uniq_country_5m": {
+          "ks": 0.7556174182825485,
+          "psi": 3.8990574797563733,
+          "mean_shift_z": 4.5992553656831
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19399299999999997,
+          "psi": 0.734512676643103,
+          "mean_shift_z": 0.343341612178688
+        }
+      }
+    },
+    {
+      "timestamp": 1772884689.419929,
+      "request_id": "0a961d140814c592fceca6da",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.86231,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.215552,
+      "ks_component": 0.11922,
+      "prediction_component": 0.527538,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7486922105263158,
+          "psi": 3.62938187781882,
+          "mean_shift_z": 8.025951270928124
+        },
+        "amt_sum_5m": {
+          "ks": 0.8050785214564369,
+          "psi": 4.395824366308533,
+          "mean_shift_z": 7.007467872364405
+        },
+        "amt_mean_5m": {
+          "ks": 0.767007,
+          "psi": 3.662255491678757,
+          "mean_shift_z": 1.5220558170304053
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.740430344955586
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7524016170212766,
+          "psi": 3.7645411074846793,
+          "mean_shift_z": 6.924300267633163
+        },
+        "uniq_country_5m": {
+          "ks": 0.7510980140646977,
+          "psi": 3.7149071654194534,
+          "mean_shift_z": 4.648523326354969
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19199299999999997,
+          "psi": 0.6891402467938552,
+          "mean_shift_z": 0.3422613727336575
+        }
+      }
+    },
+    {
+      "timestamp": 1772884689.696746,
+      "request_id": "bee02f1c9820e6a994cbf341",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.864949,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.213982,
+      "ks_component": 0.119103,
+      "prediction_component": 0.531864,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7494488945686901,
+          "psi": 3.655497535532254,
+          "mean_shift_z": 8.186961802178924
+        },
+        "amt_sum_5m": {
+          "ks": 0.8064628629776021,
+          "psi": 4.314070707771041,
+          "mean_shift_z": 7.170091805342766
+        },
+        "amt_mean_5m": {
+          "ks": 0.763007,
+          "psi": 3.556989735579748,
+          "mean_shift_z": 1.5233140542257393
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.7899167982890245
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7531201751025992,
+          "psi": 3.793016670063921,
+          "mean_shift_z": 7.066667474212821
+        },
+        "uniq_country_5m": {
+          "ks": 0.7523451104815865,
+          "psi": 3.762336702058236,
+          "mean_shift_z": 4.717863419152413
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18999299999999997,
+          "psi": 0.6562330007458523,
+          "mean_shift_z": 0.3410275465738246
+        }
+      }
+    },
+    {
+      "timestamp": 1772884689.969731,
+      "request_id": "d57f3ffeaeb58f24dba0b6c0",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.882308,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.232962,
+      "ks_component": 0.119147,
+      "prediction_component": 0.530198,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7509309534510433,
+          "psi": 3.7087238440949073,
+          "mean_shift_z": 8.180182411389419
+        },
+        "amt_sum_5m": {
+          "ks": 0.8014524664914586,
+          "psi": 4.192895930621956,
+          "mean_shift_z": 7.09479120820402
+        },
+        "amt_mean_5m": {
+          "ks": 0.760007,
+          "psi": 3.478305911976544,
+          "mean_shift_z": 1.510331198759078
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.8094131545883765
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7545998367346939,
+          "psi": 3.854427663615323,
+          "mean_shift_z": 7.0700571696075745
+        },
+        "uniq_country_5m": {
+          "ks": 0.7537011818181818,
+          "psi": 3.8166673745173796,
+          "mean_shift_z": 4.708739722731696
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19199299999999997,
+          "psi": 1.424949453734371,
+          "mean_shift_z": 0.34660056951779805
+        }
+      }
+    },
+    {
+      "timestamp": 1772884690.232344,
+      "request_id": "ec83883e7d9e33a48bab9e8d",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.863511,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.214469,
+      "ks_component": 0.11919,
+      "prediction_component": 0.529852,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7508144516129033,
+          "psi": 3.7044346476421026,
+          "mean_shift_z": 8.202215431455317
+        },
+        "amt_sum_5m": {
+          "ks": 0.8064628629776021,
+          "psi": 4.211689055192796,
+          "mean_shift_z": 7.1313018724809325
+        },
+        "amt_mean_5m": {
+          "ks": 0.763007,
+          "psi": 3.5527823040783755,
+          "mean_shift_z": 1.5240367046304877
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.8265748122467764
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7544881641586868,
+          "psi": 3.8496540011742626,
+          "mean_shift_z": 7.092090189673473
+        },
+        "uniq_country_5m": {
+          "ks": 0.7537011818181818,
+          "psi": 3.8166673745173796,
+          "mean_shift_z": 4.7233376370048425
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18999299999999997,
+          "psi": 0.6562330007458523,
+          "mean_shift_z": 0.3410656313299726
+        }
+      }
+    },
+    {
+      "timestamp": 1772884690.509997,
+      "request_id": "7406286b65f1d23feca04981",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.875616,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.21843,
+      "ks_component": 0.119685,
+      "prediction_component": 0.5375,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7536264210526316,
+          "psi": 3.8135915726838316,
+          "mean_shift_z": 8.347972333429727
+        },
+        "amt_sum_5m": {
+          "ks": 0.8172299639519359,
+          "psi": 4.282142678202036,
+          "mean_shift_z": 7.249724391379636
+        },
+        "amt_mean_5m": {
+          "ks": 0.765007,
+          "psi": 3.6064430538121255,
+          "mean_shift_z": 1.529288411096645
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 3.836735436286514
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7570769655172415,
+          "psi": 3.966958995897814,
+          "mean_shift_z": 7.209034680792477
+        },
+        "uniq_country_5m": {
+          "ks": 0.7564630641940085,
+          "psi": 3.9378040764887086,
+          "mean_shift_z": 4.776255076244997
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19099299999999997,
+          "psi": 0.6715830740391604,
+          "mean_shift_z": 0.33966273209710995
+        }
+      }
+    },
+    {
+      "timestamp": 1772884690.784906,
+      "request_id": "c547d6b3be2a8f5040bcbb28",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.880185,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.220485,
+      "ks_component": 0.119912,
+      "prediction_component": 0.539789,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7552060198019802,
+          "psi": 3.880762720372182,
+          "mean_shift_z": 8.412376545930048
+        },
+        "amt_sum_5m": {
+          "ks": 0.8211299946524064,
+          "psi": 4.300425215604333,
+          "mean_shift_z": 7.296993648732693
+        },
+        "amt_mean_5m": {
+          "ks": 0.765007,
+          "psi": 3.6064430538121255,
+          "mean_shift_z": 1.5393587218325937
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.00646064353896
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7582482234636871,
+          "psi": 4.025220083334425,
+          "mean_shift_z": 7.253100720924275
+        },
+        "uniq_country_5m": {
+          "ks": 0.7578406180257511,
+          "psi": 4.004531746144494,
+          "mean_shift_z": 4.789028251234
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19199299999999997,
+          "psi": 0.6891402467938552,
+          "mean_shift_z": 0.3386931202849044
+        }
+      }
+    },
+    {
+      "timestamp": 1772884691.060086,
+      "request_id": "5611c5ddbbba7a9198e24f87",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.87833,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.220572,
+      "ks_component": 0.119958,
+      "prediction_component": 0.5378,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7536264210526316,
+          "psi": 3.8135915726838316,
+          "mean_shift_z": 8.422545632114309
+        },
+        "amt_sum_5m": {
+          "ks": 0.8224668930481284,
+          "psi": 4.374621803780531,
+          "mean_shift_z": 7.332734626319148
+        },
+        "amt_mean_5m": {
+          "ks": 0.768007,
+          "psi": 3.690730392616291,
+          "mean_shift_z": 1.5495483674326544
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.052680113538157
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7568261818181818,
+          "psi": 3.9549400962420367,
+          "mean_shift_z": 7.2920822179639435
+        },
+        "uniq_country_5m": {
+          "ks": 0.7560021520467837,
+          "psi": 3.9164900036307113,
+          "mean_shift_z": 4.827347776201009
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19299299999999997,
+          "psi": 0.7096837752403958,
+          "mean_shift_z": 0.33742820019122793
+        }
+      }
+    },
+    {
+      "timestamp": 1772884691.325513,
+      "request_id": "088924ba473a14c50eecb9df",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.876322,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.218844,
+      "ks_component": 0.119786,
+      "prediction_component": 0.537692,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7520571803278688,
+          "psi": 3.7511806741963927,
+          "mean_shift_z": 8.334413551850712
+        },
+        "amt_sum_5m": {
+          "ks": 0.821309578018996,
+          "psi": 4.393010348796172,
+          "mean_shift_z": 7.392814503403932
+        },
+        "amt_mean_5m": {
+          "ks": 0.768007,
+          "psi": 3.7026181411225147,
+          "mean_shift_z": 1.5832072029140662
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.095507486751095
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.755536511821975,
+          "psi": 3.895431796502673,
+          "mean_shift_z": 7.198865594608215
+        },
+        "uniq_country_5m": {
+          "ks": 0.7546591627906977,
+          "psi": 3.8569733489319047,
+          "mean_shift_z": 4.809100383359576
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19199299999999997,
+          "psi": 0.6891402467938552,
+          "mean_shift_z": 0.33840117624792027
+        }
+      }
+    },
+    {
+      "timestamp": 1772884691.605438,
+      "request_id": "624cebe365eb60aa5ea26690",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.90339,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.241206,
+      "ks_component": 0.12025,
+      "prediction_component": 0.541934,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7549074974874372,
+          "psi": 3.867703286178145,
+          "mean_shift_z": 8.43271471829857
+        },
+        "amt_sum_5m": {
+          "ks": 0.8284801774415406,
+          "psi": 4.495415581083976,
+          "mean_shift_z": 7.529877124774918
+        },
+        "amt_mean_5m": {
+          "ks": 0.767007,
+          "psi": 3.6774317394226146,
+          "mean_shift_z": 1.5851245971524068
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.185117209427406
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7581303628691983,
+          "psi": 4.019190801026094,
+          "mean_shift_z": 7.2463213301347675
+        },
+        "uniq_country_5m": {
+          "ks": 0.7568811117824774,
+          "psi": 3.957559576861885,
+          "mean_shift_z": 4.893038390430166
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19499299999999997,
+          "psi": 1.4784111464098668,
+          "mean_shift_z": 0.3452336163099005
+        }
+      }
+    },
+    {
+      "timestamp": 1772884691.879221,
+      "request_id": "6c5a161e36257c8dc7465ec7",
+      "endpoint": "/score",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.892436,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.234141,
+      "ks_component": 0.119704,
+      "prediction_component": 0.538591,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7483857038269551,
+          "psi": 3.618994237386388,
+          "mean_shift_z": 8.34119294264022
+        },
+        "amt_sum_5m": {
+          "ks": 0.8242494242424242,
+          "psi": 4.359603846024681,
+          "mean_shift_z": 7.5455802899364235
+        },
+        "amt_mean_5m": {
+          "ks": 0.766007,
+          "psi": 3.655036380759032,
+          "mean_shift_z": 1.6002768984932467
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.226993099806501
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7526303776223776,
+          "psi": 3.77351662691441,
+          "mean_shift_z": 7.159884097568548
+        },
+        "uniq_country_5m": {
+          "ks": 0.7510559041916168,
+          "psi": 3.7133449173825155,
+          "mean_shift_z": 4.845595169042442
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19399299999999997,
+          "psi": 1.4578639838707987,
+          "mean_shift_z": 0.34450746225452056
+        }
+      }
+    },
+    {
+      "timestamp": 1772884692.164757,
+      "request_id": "1b9f0275126f50beb1056d16",
+      "endpoint": "/predict",
+      "phase": "gradual_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.893815,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.235273,
+      "ks_component": 0.119684,
+      "prediction_component": 0.538859,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.750008,
+          "psi": 3.67524320495893,
+          "mean_shift_z": 8.332718704153336
+        },
+        "amt_sum_5m": {
+          "ks": 0.824798086350975,
+          "psi": 4.389328769327747,
+          "mean_shift_z": 7.619785082562044
+        },
+        "amt_mean_5m": {
+          "ks": 0.768007,
+          "psi": 3.7227219275427257,
+          "mean_shift_z": 1.6272497785305124
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.167508659204822
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7541746666666667,
+          "psi": 3.836378130931152,
+          "mean_shift_z": 7.129376839015764
+        },
+        "uniq_country_5m": {
+          "ks": 0.7527197384843982,
+          "psi": 3.777045297638541,
+          "mean_shift_z": 4.818224079780292
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19099299999999997,
+          "psi": 1.411297720031332,
+          "mean_shift_z": 0.34401621462111165
+        }
+      }
+    },
+    {
+      "timestamp": 1772884692.702755,
+      "request_id": "ae738d069be3b619389d6771",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.893782,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.225464,
+      "ks_component": 0.120509,
+      "prediction_component": 0.547809,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7567051713810317,
+          "psi": 3.9491948881753163,
+          "mean_shift_z": 8.522541646259544
+        },
+        "amt_sum_5m": {
+          "ks": 0.8429833560500696,
+          "psi": 4.611822778954165,
+          "mean_shift_z": 7.789213450946616
+        },
+        "amt_mean_5m": {
+          "ks": 0.774007,
+          "psi": 3.9111761417519553,
+          "mean_shift_z": 1.656393559104309
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.327692003744586
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7597089735744089,
+          "psi": 4.103381565657837,
+          "mean_shift_z": 7.29886160875345
+        },
+        "uniq_country_5m": {
+          "ks": 0.7588552834067548,
+          "psi": 4.05690766059071,
+          "mean_shift_z": 4.865667301168017
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18999299999999997,
+          "psi": 0.6562330007458523,
+          "mean_shift_z": 0.3392848173507458
+        }
+      }
+    },
+    {
+      "timestamp": 1772884693.291009,
+      "request_id": "565d866e05adb7b9059c2786",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.906634,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.236206,
+      "ks_component": 0.120904,
+      "prediction_component": 0.549524,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7629390344827587,
+          "psi": 4.304257157246028,
+          "mean_shift_z": 8.861511185734916
+        },
+        "amt_sum_5m": {
+          "ks": 0.8460297272727273,
+          "psi": 4.913216995854755,
+          "mean_shift_z": 8.032114882285276
+        },
+        "amt_mean_5m": {
+          "ks": 0.781007,
+          "psi": 4.196222931415898,
+          "mean_shift_z": 1.6555655208361493
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.344920143104866
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7647890218978103,
+          "psi": 4.443377558293528,
+          "mean_shift_z": 7.693761122242259
+        },
+        "uniq_country_5m": {
+          "ks": 0.7647289985315713,
+          "psi": 4.438503833024315,
+          "mean_shift_z": 4.964203222511754
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18699299999999996,
+          "psi": 0.6191066261060022,
+          "mean_shift_z": 0.33741080900556913
+        }
+      }
+    },
+    {
+      "timestamp": 1772884693.564871,
+      "request_id": "e2f1188e1b156a8a07d96064",
+      "endpoint": "/predict",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.905676,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.234953,
+      "ks_component": 0.121064,
+      "prediction_component": 0.54966,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7608236028368794,
+          "psi": 4.16781587382573,
+          "mean_shift_z": 8.93438963672212
+        },
+        "amt_sum_5m": {
+          "ks": 0.8479838786127167,
+          "psi": 4.911493920469476,
+          "mean_shift_z": 8.11017384961107
+        },
+        "amt_mean_5m": {
+          "ks": 0.781007,
+          "psi": 4.195643976204148,
+          "mean_shift_z": 1.6547750315705871
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.477464551494182
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7631032380952382,
+          "psi": 4.315763897142954,
+          "mean_shift_z": 7.759860182439956
+        },
+        "uniq_country_5m": {
+          "ks": 0.7630319520958084,
+          "psi": 4.310750301157979,
+          "mean_shift_z": 5.007996965331192
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19099299999999997,
+          "psi": 0.6715830740391604,
+          "mean_shift_z": 0.33896005151882164
+        }
+      }
+    },
+    {
+      "timestamp": 1772884693.855458,
+      "request_id": "d4ea26a9a223234e1fc5c3c6",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.902733,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.235101,
+      "ks_component": 0.120854,
+      "prediction_component": 0.546778,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7603021176470589,
+          "psi": 4.137106415384007,
+          "mean_shift_z": 9.04285988935424
+        },
+        "amt_sum_5m": {
+          "ks": 0.8405716359583952,
+          "psi": 4.84565094456951,
+          "mean_shift_z": 8.215126256020168
+        },
+        "amt_mean_5m": {
+          "ks": 0.779007,
+          "psi": 4.106674163495881,
+          "mean_shift_z": 1.6524858713791166
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.455940212239972
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7628867878787879,
+          "psi": 4.300626671914784,
+          "mean_shift_z": 7.8310437857297845
+        },
+        "uniq_country_5m": {
+          "ks": 0.7628683945371776,
+          "psi": 4.299352052460929,
+          "mean_shift_z": 5.048141229582344
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19099299999999997,
+          "psi": 0.7291725197616341,
+          "mean_shift_z": 0.3401894263118601
+        }
+      }
+    },
+    {
+      "timestamp": 1772884694.39469,
+      "request_id": "5ab2a97899ccbf1373b40756",
+      "endpoint": "/predict",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.891976,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.23144,
+      "ks_component": 0.120607,
+      "prediction_component": 0.539928,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7568591796733213,
+          "psi": 3.956512814776576,
+          "mean_shift_z": 8.890323596590322
+        },
+        "amt_sum_5m": {
+          "ks": 0.8325407331334332,
+          "psi": 4.735894942858622,
+          "mean_shift_z": 8.316012542166066
+        },
+        "amt_mean_5m": {
+          "ks": 0.779007,
+          "psi": 4.129808822876981,
+          "mean_shift_z": 1.7050108237280037
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.642789997470299
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7599477590361446,
+          "psi": 4.116810170602193,
+          "mean_shift_z": 7.629356909741938
+        },
+        "uniq_country_5m": {
+          "ks": 0.7596940643185299,
+          "psi": 4.102549562529954,
+          "mean_shift_z": 5.000698008194619
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19299299999999997,
+          "psi": 0.7620834105090728,
+          "mean_shift_z": 0.3398736967501361
+        }
+      }
+    },
+    {
+      "timestamp": 1772884694.673051,
+      "request_id": "fcf4690507cfea4d0780d3be",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.891551,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.230178,
+      "ks_component": 0.120421,
+      "prediction_component": 0.540951,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7564551243042672,
+          "psi": 3.9374328265171132,
+          "mean_shift_z": 8.954727809090643
+        },
+        "amt_sum_5m": {
+          "ks": 0.8298850487804879,
+          "psi": 4.709125892485403,
+          "mean_shift_z": 8.423697598614336
+        },
+        "amt_mean_5m": {
+          "ks": 0.779007,
+          "psi": 4.141204120713525,
+          "mean_shift_z": 1.7300811989043383
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.747128851630196
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7598104316109423,
+          "psi": 4.109063391857223,
+          "mean_shift_z": 7.715794142308159
+        },
+        "uniq_country_5m": {
+          "ks": 0.7595520494590418,
+          "psi": 4.094661858905121,
+          "mean_shift_z": 5.0280690974567674
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.19099299999999997,
+          "psi": 0.7291725197616341,
+          "mean_shift_z": 0.33582620098107135
+        }
+      }
+    },
+    {
+      "timestamp": 1772884694.95098,
+      "request_id": "79b916b9118bba68c3ce724c",
+      "endpoint": "/predict",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.884542,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.223499,
+      "ks_component": 0.11992,
+      "prediction_component": 0.541123,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7526616312849163,
+          "psi": 3.7747493155173597,
+          "mean_shift_z": 8.99879384922244
+        },
+        "amt_sum_5m": {
+          "ks": 0.8275878936825886,
+          "psi": 4.530558222036889,
+          "mean_shift_z": 8.507867955881334
+        },
+        "amt_mean_5m": {
+          "ks": 0.776007,
+          "psi": 4.023693713799356,
+          "mean_shift_z": 1.7296738778460574
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.804242623546314
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7567153170731707,
+          "psi": 3.9496752359758616,
+          "mean_shift_z": 7.771724116321594
+        },
+        "uniq_country_5m": {
+          "ks": 0.7563744596273292,
+          "psi": 3.9336693640705613,
+          "mean_shift_z": 5.039017533161628
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18799299999999997,
+          "psi": 0.692040658061735,
+          "mean_shift_z": 0.3350445858871652
+        }
+      }
+    },
+    {
+      "timestamp": 1772884695.775844,
+      "request_id": "09afe6a0633aec8f17038d28",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.892187,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.230269,
+      "ks_component": 0.118874,
+      "prediction_component": 0.543044,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7421894671814672,
+          "psi": 3.4289937016352683,
+          "mean_shift_z": 9.33437369330306
+        },
+        "amt_sum_5m": {
+          "ks": 0.8252852193958664,
+          "psi": 4.403353120478952,
+          "mean_shift_z": 8.760200586665086
+        },
+        "amt_mean_5m": {
+          "ks": 0.774007,
+          "psi": 3.9501536329305584,
+          "mean_shift_z": 1.6933601288726572
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.898733105649003
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7483622319749217,
+          "psi": 3.618203182259803,
+          "mean_shift_z": 8.093745178823198
+        },
+        "uniq_country_5m": {
+          "ks": 0.747184759410802,
+          "psi": 3.5792969193714095,
+          "mean_shift_z": 5.192295633029662
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18199299999999996,
+          "psi": 1.3292007883600458,
+          "mean_shift_z": 0.33553537146156326
+        }
+      }
+    },
+    {
+      "timestamp": 1772884696.049777,
+      "request_id": "168aa157cd554f7f618af9e1",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.887943,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.228994,
+      "ks_component": 0.118813,
+      "prediction_component": 0.540136,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7419340700389105,
+          "psi": 3.4218663921388224,
+          "mean_shift_z": 9.300476739355522
+        },
+        "amt_sum_5m": {
+          "ks": 0.8252852193958664,
+          "psi": 4.323130427809506,
+          "mean_shift_z": 8.719252208363221
+        },
+        "amt_mean_5m": {
+          "ks": 0.772007,
+          "psi": 3.8824127051092625,
+          "mean_shift_z": 1.6746271857926527
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.885723791749027
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7481517598736177,
+          "psi": 3.6111374920948136,
+          "mean_shift_z": 8.039510052507138
+        },
+        "uniq_country_5m": {
+          "ks": 0.7467687973421927,
+          "psi": 3.5659031331186197,
+          "mean_shift_z": 5.190470893745519
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18199299999999996,
+          "psi": 1.3292007883600458,
+          "mean_shift_z": 0.3375111695234437
+        }
+      }
+    },
+    {
+      "timestamp": 1772884696.32653,
+      "request_id": "bfa28984240954113f8e8862",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.889074,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.229867,
+      "ks_component": 0.118933,
+      "prediction_component": 0.540274,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7426270476190476,
+          "psi": 3.4413194878484408,
+          "mean_shift_z": 9.258105546921103
+        },
+        "amt_sum_5m": {
+          "ks": 0.8270256335403727,
+          "psi": 4.390254014565615,
+          "mean_shift_z": 8.661699098160375
+        },
+        "amt_mean_5m": {
+          "ks": 0.772007,
+          "psi": 3.8824127051092625,
+          "mean_shift_z": 1.6690763518466893
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.896240710328005
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7485282492211839,
+          "psi": 3.6238117807959975,
+          "mean_shift_z": 8.007307946256978
+        },
+        "uniq_country_5m": {
+          "ks": 0.7468623046357616,
+          "psi": 3.568898638787378,
+          "mean_shift_z": 5.216017243723524
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18299299999999996,
+          "psi": 1.3360509742756044,
+          "mean_shift_z": 0.3380820523267034
+        }
+      }
+    },
+    {
+      "timestamp": 1772884696.601967,
+      "request_id": "103bac2ada4467a6717d9417",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.895375,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.232881,
+      "ks_component": 0.119263,
+      "prediction_component": 0.54323,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7458251206225681,
+          "psi": 3.5361565278820106,
+          "mean_shift_z": 9.320814911724046
+        },
+        "amt_sum_5m": {
+          "ks": 0.8330288068535826,
+          "psi": 4.461994402042494,
+          "mean_shift_z": 8.800259584071313
+        },
+        "amt_mean_5m": {
+          "ks": 0.772007,
+          "psi": 3.887886413228805,
+          "mean_shift_z": 1.6984762587730307
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 4.931129483875283
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7515705,
+          "psi": 3.73260815695575,
+          "mean_shift_z": 8.036120357112384
+        },
+        "uniq_country_5m": {
+          "ks": 0.7503774581280789,
+          "psi": 3.6885099143816804,
+          "mean_shift_z": 5.221491461575955
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18299299999999996,
+          "psi": 1.3360509742756044,
+          "mean_shift_z": 0.33739019424400724
+        }
+      }
+    },
+    {
+      "timestamp": 1772884696.899743,
+      "request_id": "59f12a47ffdebff5301f7511",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.904852,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.239591,
+      "ks_component": 0.119829,
+      "prediction_component": 0.545433,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7515705,
+          "psi": 3.73260815695575,
+          "mean_shift_z": 9.397083058106004
+        },
+        "amt_sum_5m": {
+          "ks": 0.8350307717908082,
+          "psi": 4.596255235986223,
+          "mean_shift_z": 8.93873393718349
+        },
+        "amt_mean_5m": {
+          "ks": 0.775982975975976,
+          "psi": 4.033505539275234,
+          "mean_shift_z": 1.7321530106651721
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 5.017819738848274
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7563454805598756,
+          "psi": 3.9323209670146317,
+          "mean_shift_z": 8.095440026520574
+        },
+        "uniq_country_5m": {
+          "ks": 0.754941110367893,
+          "psi": 3.86916488291661,
+          "mean_shift_z": 5.274408900816109
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18499299999999996,
+          "psi": 1.3510217662851278,
+          "mean_shift_z": 0.33486608638316484
+        }
+      }
+    },
+    {
+      "timestamp": 1772884697.164746,
+      "request_id": "92ff1951520b5e4615c9ec27",
+      "endpoint": "/predict",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.909971,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.244689,
+      "ks_component": 0.120274,
+      "prediction_component": 0.545008,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.75547675,
+          "psi": 3.892762493179432,
+          "mean_shift_z": 9.35640671336896
+        },
+        "amt_sum_5m": {
+          "ks": 0.837895198757764,
+          "psi": 4.680302605998056,
+          "mean_shift_z": 8.890684006104033
+        },
+        "amt_mean_5m": {
+          "ks": 0.777984977977978,
+          "psi": 4.1062571722192915,
+          "mean_shift_z": 1.736458486938229
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 5.050440821364618
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7594316760124611,
+          "psi": 4.088028474912013,
+          "mean_shift_z": 8.056458529480906
+        },
+        "uniq_country_5m": {
+          "ks": 0.7585606315789474,
+          "psi": 4.0413926553853,
+          "mean_shift_z": 5.2141925044393815
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18699299999999996,
+          "psi": 1.368061149953527,
+          "mean_shift_z": 0.33545983808958446
+        }
+      }
+    },
+    {
+      "timestamp": 1772884697.442922,
+      "request_id": "15dff7ee3415657b414a77a1",
+      "endpoint": "/predict",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.911167,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.244548,
+      "ks_component": 0.120294,
+      "prediction_component": 0.546326,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7541351347248577,
+          "psi": 3.834716963139051,
+          "mean_shift_z": 9.26319009001323
+        },
+        "amt_sum_5m": {
+          "ks": 0.837895198757764,
+          "psi": 4.7356805857645465,
+          "mean_shift_z": 8.914241036363675
+        },
+        "amt_mean_5m": {
+          "ks": 0.77998697997998,
+          "psi": 4.196045518415216,
+          "mean_shift_z": 1.7700765612307114
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 5.182306106191417
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7583916858006042,
+          "psi": 4.032611965441856,
+          "mean_shift_z": 8.010697641651731
+        },
+        "uniq_country_5m": {
+          "ks": 0.757092690553746,
+          "psi": 3.967717750111545,
+          "mean_shift_z": 5.216017243723524
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18799299999999997,
+          "psi": 1.3775455671321948,
+          "mean_shift_z": 0.33746864784186753
+        }
+      }
+    },
+    {
+      "timestamp": 1772884698.268145,
+      "request_id": "903729fb128cba64239aba6f",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.930397,
+      "vote_ratio": 0.625,
+      "threshold": 0.819046,
+      "psi_component": 0.257,
+      "ks_component": 0.121583,
+      "prediction_component": 0.551814,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7692276531791907,
+          "psi": 4.910896035316727,
+          "mean_shift_z": 9.36149125646109
+        },
+        "amt_sum_5m": {
+          "ks": 0.8513846337115073,
+          "psi": 5.33619657593247,
+          "mean_shift_z": 9.116424322453065
+        },
+        "amt_mean_5m": {
+          "ks": 0.788007,
+          "psi": 4.657119286677852,
+          "mean_shift_z": 1.7983874564815021
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 5.4205345928714985
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7703496149068323,
+          "psi": 5.085163503879934,
+          "mean_shift_z": 8.153064848231388
+        },
+        "uniq_country_5m": {
+          "ks": 0.7701848488745981,
+          "psi": 5.0571780555125265,
+          "mean_shift_z": 5.226965679428384
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18799299999999997,
+          "psi": 0.692040658061735,
+          "mean_shift_z": 0.3338938789562016
+        }
+      }
+    },
+    {
+      "timestamp": 1772884698.542471,
+      "request_id": "767769f45d78d7d20ac9f8f0",
+      "endpoint": "/score",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.918976,
+      "vote_ratio": 0.625,
+      "threshold": 0.819046,
+      "psi_component": 0.246979,
+      "ks_component": 0.12117,
+      "prediction_component": 0.550827,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7656271369606004,
+          "psi": 4.5144127559675145,
+          "mean_shift_z": 9.214039506789302
+        },
+        "amt_sum_5m": {
+          "ks": 0.843096430894309,
+          "psi": 5.179713333022084,
+          "mean_shift_z": 9.0389562291579
+        },
+        "amt_mean_5m": {
+          "ks": 0.786007,
+          "psi": 4.522014344623638,
+          "mean_shift_z": 1.8048917121129322
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 5.469226959709697
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7673510321592649,
+          "psi": 4.681725133385066,
+          "mean_shift_z": 8.0496791386914
+        },
+        "uniq_country_5m": {
+          "ks": 0.7670588744038156,
+          "psi": 4.6509938644055255,
+          "mean_shift_z": 5.194120372313805
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18799299999999997,
+          "psi": 0.692040658061735,
+          "mean_shift_z": 0.3347261041293638
+        }
+      }
+    },
+    {
+      "timestamp": 1772884698.816116,
+      "request_id": "e4373770335b59092c3ee7b3",
+      "endpoint": "/predict",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.906508,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.23514,
+      "ks_component": 0.120687,
+      "prediction_component": 0.550681,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.762116655616943,
+          "psi": 4.248745572656012,
+          "mean_shift_z": 9.108958949551939
+        },
+        "amt_sum_5m": {
+          "ks": 0.8383186883116883,
+          "psi": 4.897105491178175,
+          "mean_shift_z": 8.948945776585742
+        },
+        "amt_mean_5m": {
+          "ks": 0.780007,
+          "psi": 4.204894092025776,
+          "mean_shift_z": 1.813203079306327
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 5.44857863531048
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7642718036809816,
+          "psi": 4.402238071615614,
+          "mean_shift_z": 7.947988276848788
+        },
+        "uniq_country_5m": {
+          "ks": 0.7641045732087228,
+          "psi": 4.389335555039926,
+          "mean_shift_z": 5.1247802795163615
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18699299999999996,
+          "psi": 0.6191066261060022,
+          "mean_shift_z": 0.33223804124144546
+        }
+      }
+    },
+    {
+      "timestamp": 1772884699.081792,
+      "request_id": "9fe0c98745816c790666e690",
+      "endpoint": "/predict",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.900612,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.2332,
+      "ks_component": 0.120554,
+      "prediction_component": 0.546858,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7606453429084381,
+          "psi": 4.1572021868809115,
+          "mean_shift_z": 8.898797835077206
+        },
+        "amt_sum_5m": {
+          "ks": 0.8338779677419355,
+          "psi": 4.879846782418646,
+          "mean_shift_z": 8.86457253746737
+        },
+        "amt_mean_5m": {
+          "ks": 0.779007,
+          "psi": 4.1694896003598805,
+          "mean_shift_z": 1.8348184791938134
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 5.441398228946929
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7631385637982196,
+          "psi": 4.318258816548185,
+          "mean_shift_z": 7.700540513031767
+        },
+        "uniq_country_5m": {
+          "ks": 0.7628499452887538,
+          "psi": 4.298075374473688,
+          "mean_shift_z": 5.06821336170792
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18799299999999997,
+          "psi": 0.6302922552764513,
+          "mean_shift_z": 0.33462593951727804
+        }
+      }
+    },
+    {
+      "timestamp": 1772884699.360219,
+      "request_id": "2ce45b7c3054d556e121ba1b",
+      "endpoint": "/predict",
+      "phase": "sudden_drift",
+      "ground_truth_drift": 1,
+      "predicted_alert": 0,
+      "fused_score": 0.88312,
+      "vote_ratio": 0.5,
+      "threshold": 0.819046,
+      "psi_component": 0.223183,
+      "ks_component": 0.119738,
+      "prediction_component": 0.5402,
+      "feature_scores": {
+        "cnt_5m": {
+          "ks": 0.7556418028169014,
+          "psi": 3.9001529391972696,
+          "mean_shift_z": 8.678467634418215
+        },
+        "amt_sum_5m": {
+          "ks": 0.8198787948717948,
+          "psi": 4.5644492778525105,
+          "mean_shift_z": 8.736288405425434
+        },
+        "amt_mean_5m": {
+          "ks": 0.773007,
+          "psi": 3.939852844205544,
+          "mean_shift_z": 1.8477426767839134
+        },
+        "amt_std_5m": {
+          "ks": 9e-06,
+          "psi": 0.0,
+          "mean_shift_z": 5.302011238772334
+        },
+        "uniq_merchant_5m": {
+          "ks": 0.7590428330914369,
+          "psi": 4.066919749712788,
+          "mean_shift_z": 7.486989703162281
+        },
+        "uniq_country_5m": {
+          "ks": 0.7584167481146304,
+          "psi": 4.033909327755788,
+          "mean_shift_z": 4.9788011367849
+        },
+        "time_since_last": {
+          "ks": 8.999999999481645e-06,
+          "psi": 0.0,
+          "mean_shift_z": null
+        },
+        "rate_per_min": {
+          "ks": 0.18599299999999996,
+          "psi": 0.6088437463274221,
+          "mean_shift_z": 0.33674919136675924
+        }
+      }
+    }
+  ],
+  "counts": {
+    "FP": 10,
+    "FN": 44
+  }
+}

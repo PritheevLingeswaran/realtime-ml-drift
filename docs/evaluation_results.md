@@ -1,3 +1,19 @@
 # Evaluation Results
 
-Run `python scripts/run_eval.py --config configs/dev.yaml` to populate this file.
+Use the measured runners below (no hand-edited metrics):
+
+```bash
+python scripts/benchmark.py --config configs/dev.yaml --replay data/raw/streams/dev_stream.jsonl --duration_sec 600
+python scripts/soak_test.py --config configs/dev.yaml --duration_hours 6
+```
+
+Outputs:
+- Benchmark Markdown: `docs/benchmark_report.md`
+- Benchmark JSON: `data/processed/snapshots/benchmark_report.json`
+- Soak Markdown: `docs/soak_report.md`
+- Soak JSON: `data/processed/snapshots/soak_report.json`
+
+Notes:
+- Drift detection latency here means **detection delay** (drift onset to first `drift_active=True`).
+- Pipeline latency is end-to-end event processing latency, not API response latency.
+- Reports include a Reality Check section by design (FP/FN tradeoffs, human review requirement).

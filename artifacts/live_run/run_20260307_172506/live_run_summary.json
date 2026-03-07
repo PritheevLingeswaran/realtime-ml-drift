@@ -1,0 +1,99 @@
+{
+  "sustained_rps": 791.6756823016425,
+  "latency_p50_ms": 22.6064,
+  "latency_p95_ms": 25.346420000000002,
+  "latency_p99_ms": 27.029192000000002,
+  "error_rate_percent": 0.0,
+  "cpu_avg_percent": 0.0,
+  "cpu_p95_percent": 0.0,
+  "memory_avg_mb": 0.0,
+  "memory_p95_mb": 0.0,
+  "alert_precision": 0.0,
+  "alert_recall": 0.0,
+  "alert_f1": 0.0,
+  "avg_detection_latency_seconds": 0.0,
+  "p95_detection_latency_seconds": 0.0,
+  "false_alert_rate": 0.0,
+  "false_alert_reduction_percent": 100.0,
+  "baseline_vs_adaptive": {
+    "fixed_baseline": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "tn": 63,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 1.0,
+      "segments_total": 0,
+      "segments_detected": 0,
+      "avg_detection_latency_seconds": 0.0,
+      "p95_detection_latency_seconds": 0.0
+    },
+    "adaptive": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "tn": 64,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 0.0,
+      "segments_total": 0,
+      "segments_detected": 0,
+      "avg_detection_latency_seconds": 0.0,
+      "p95_detection_latency_seconds": 0.0
+    }
+  },
+  "confusion_matrix": {
+    "TP": 0,
+    "FP": 0,
+    "TN": 64,
+    "FN": 0
+  },
+  "phase_metrics": {
+    "normal": {
+      "TP": 0,
+      "FP": 0,
+      "TN": 64,
+      "FN": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 0.0,
+      "points": 64
+    }
+  },
+  "fn_fp_analysis": {
+    "path": "artifacts/live_run/run_20260307_172506/fn_fp_analysis.json",
+    "FP_count": 0,
+    "FN_count": 0
+  },
+  "phase_label_verification": {
+    "checked_rows": 64,
+    "mismatches": 0,
+    "mapping": {
+      "normal": 0,
+      "stable_baseline": 0,
+      "gradual_drift": 1,
+      "sudden_drift": 1,
+      "noisy_non_drift": 0
+    },
+    "valid": true
+  },
+  "alignment": {
+    "mode": "windowed",
+    "compared_rows": 64,
+    "description": "Only drift_evaluated rows are scored to align alerts with detection windows."
+  },
+  "system_reliability": {
+    "uptime_percent": 100.0,
+    "error_rate_percent": 0.0
+  },
+  "drift_eval_points": 64,
+  "inputs": {
+    "request_csv": "artifacts/live_run/run_20260307_172506/requests.csv",
+    "resource_csv": "artifacts/live_run/run_20260307_172506/system_metrics.csv"
+  },
+  "generated_at": "2026-03-07T11:56:05Z"
+}

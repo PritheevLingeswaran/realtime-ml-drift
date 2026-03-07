@@ -11,6 +11,8 @@ def build_monitor() -> DriftMonitor:
         current_window_events=50,
         window_size=50,
         evaluation_interval=5,
+        check_interval_events=10,
+        periodic_expensive_checks_enabled=False,
         min_samples=20,
         feature_ks_p=0.01,
         feature_psi=0.2,

@@ -15,6 +15,7 @@ class AdaptationConfig:
     max_threshold: float
     max_step: float
     cooldown_seconds: int
+    min_history: int = 200
 
 
 class ThresholdController:
@@ -30,46 +31,61 @@ class ThresholdController:
     def __init__(self, cfg: AdaptationConfig, window_size: int = 2000) -> None:
         self.cfg = cfg
         self.threshold = float(cfg.initial_threshold)
-        self._initial_threshold = float(cfg.initial_threshold)
         self._scores: deque[float] = deque(maxlen=window_size)
         self._last_change_ts: float = 0.0
+        self._skipped_drift = 0
+        self._skipped_cooldown = 0
+        self._skipped_history = 0
+        self._step_limited = 0
+        self._bounds_limited = 0
+        self._updates_applied = 0
 
     def update(self, score: float, ts: float, drift_active: bool) -> float:
-        self._scores.append(float(score))
+        # Safety: NaN/inf scores corrupt quantile adaptation and can collapse threshold.
+        if np.isfinite(score):
+            self._scores.append(float(score))
         if not self.cfg.enabled:
             return self.threshold
 
         # Safety: do not adapt during suspected drift.
         if drift_active:
+            self._skipped_drift += 1
             return self.threshold
 
         # Cooldown to avoid thrashing
         if self._last_change_ts and (ts - self._last_change_ts) < float(self.cfg.cooldown_seconds):
+            self._skipped_cooldown += 1
             return self.threshold
 
-        if len(self._scores) < 200:
+        if len(self._scores) < max(1, int(self.cfg.min_history)):
+            self._skipped_history += 1
             return self.threshold
 
         # Quantile threshold to hit target anomaly rate: threshold is (1 - target_rate) quantile
         q = max(0.0, min(1.0, 1.0 - float(self.cfg.target_anomaly_rate)))
-        proposed = float(np.quantile(np.array(self._scores, dtype=float), q))
+        arr = np.array(self._scores, dtype=float)
+        arr = arr[np.isfinite(arr)]
+        if len(arr) < max(1, int(self.cfg.min_history)):
+            self._skipped_history += 1
+            return self.threshold
+        proposed = float(np.quantile(arr, q))
 
         # Clamp
+        pre_bounds = proposed
         proposed = min(float(self.cfg.max_threshold), max(float(self.cfg.min_threshold), proposed))
+        if proposed != pre_bounds:
+            self._bounds_limited += 1
 
         # Step limit
         delta = proposed - self.threshold
         if abs(delta) > float(self.cfg.max_step):
             proposed = self.threshold + float(self.cfg.max_step) * (1.0 if delta > 0 else -1.0)
-
-        # Hard guardrail: automation cannot move too far from the initial human-chosen threshold.
-        low = self._initial_threshold - float(self.cfg.max_step)
-        high = self._initial_threshold + float(self.cfg.max_step)
-        proposed = min(high, max(low, proposed))
+            self._step_limited += 1
 
         if proposed != self.threshold:
             self.threshold = proposed
             self._last_change_ts = ts
+            self._updates_applied += 1
 
         return self.threshold
 
@@ -77,4 +93,19 @@ class ThresholdController:
         if not self._scores:
             return 0.0
         arr = np.array(self._scores, dtype=float)
+        arr = arr[np.isfinite(arr)]
+        if len(arr) == 0:
+            return 0.0
         return float(np.mean(arr >= self.threshold))
+
+    def stats(self) -> dict[str, int | float]:
+        return {
+            "score_history_len": len(self._scores),
+            "updates_applied": self._updates_applied,
+            "skipped_drift": self._skipped_drift,
+            "skipped_cooldown": self._skipped_cooldown,
+            "skipped_history": self._skipped_history,
+            "step_limited": self._step_limited,
+            "bounds_limited": self._bounds_limited,
+            "min_history": int(self.cfg.min_history),
+        }

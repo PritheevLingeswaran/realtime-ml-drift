@@ -1,0 +1,132 @@
+{
+  "sustained_rps": 778.1448192372138,
+  "latency_p50_ms": 22.6436,
+  "latency_p95_ms": 25.836359999999996,
+  "latency_p99_ms": 49.205159999999985,
+  "error_rate_percent": 0.0,
+  "cpu_avg_percent": 97.68148148148148,
+  "cpu_p95_percent": 100.0,
+  "memory_avg_mb": 211.97222222222223,
+  "memory_p95_mb": 228.0,
+  "alert_precision": 0.0,
+  "alert_recall": 0.0,
+  "alert_f1": 0.0,
+  "avg_detection_latency_seconds": 0.0,
+  "p95_detection_latency_seconds": 0.0,
+  "false_alert_rate": 0.0,
+  "false_alert_reduction_percent": 0.0,
+  "baseline_vs_adaptive": {
+    "fixed_baseline": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 41,
+      "tn": 32,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 0.0,
+      "segments_total": 1,
+      "segments_detected": 0,
+      "avg_detection_latency_seconds": 0.0,
+      "p95_detection_latency_seconds": 0.0
+    },
+    "adaptive": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 41,
+      "tn": 32,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 0.0,
+      "segments_total": 1,
+      "segments_detected": 0,
+      "avg_detection_latency_seconds": 0.0,
+      "p95_detection_latency_seconds": 0.0
+    }
+  },
+  "confusion_matrix": {
+    "TP": 0,
+    "FP": 0,
+    "TN": 32,
+    "FN": 41
+  },
+  "phase_metrics": {
+    "gradual_drift": {
+      "TP": 0,
+      "FP": 0,
+      "TN": 0,
+      "FN": 23,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 0.0,
+      "points": 23
+    },
+    "noisy_non_drift": {
+      "TP": 0,
+      "FP": 0,
+      "TN": 17,
+      "FN": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 0.0,
+      "points": 17
+    },
+    "normal": {
+      "TP": 0,
+      "FP": 0,
+      "TN": 15,
+      "FN": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 0.0,
+      "points": 15
+    },
+    "sudden_drift": {
+      "TP": 0,
+      "FP": 0,
+      "TN": 0,
+      "FN": 18,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_alert_rate": 0.0,
+      "points": 18
+    }
+  },
+  "fn_fp_analysis": {
+    "path": "artifacts/live_run/run_20260307_172923/fn_fp_analysis.json",
+    "FP_count": 0,
+    "FN_count": 41
+  },
+  "phase_label_verification": {
+    "checked_rows": 73,
+    "mismatches": 0,
+    "mapping": {
+      "normal": 0,
+      "stable_baseline": 0,
+      "gradual_drift": 1,
+      "sudden_drift": 1,
+      "noisy_non_drift": 0
+    },
+    "valid": true
+  },
+  "alignment": {
+    "mode": "windowed",
+    "compared_rows": 73,
+    "description": "Only drift_evaluated rows are scored to align alerts with detection windows."
+  },
+  "system_reliability": {
+    "uptime_percent": 100.0,
+    "error_rate_percent": 0.0
+  },
+  "drift_eval_points": 73,
+  "inputs": {
+    "request_csv": "artifacts/live_run/run_20260307_172923/requests.csv",
+    "resource_csv": "artifacts/live_run/run_20260307_172923/system_metrics.csv"
+  },
+  "generated_at": "2026-03-07T11:59:58Z"
+}

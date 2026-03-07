@@ -33,6 +33,13 @@ class ServiceState:
     logger: structlog.BoundLogger
 
 
+@dataclass
+class MicroBatchConfig:
+    enabled: bool
+    batch_size: int
+    flush_ms: int
+
+
 def build_state(config_path: str | None) -> ServiceState:
     cfg = load_config(config_path).raw
 
@@ -66,6 +73,10 @@ def build_state(config_path: str | None) -> ServiceState:
             current_window_events=int(dcfg["current_window_events"]),
             window_size=int(dcfg.get("window_size", dcfg["current_window_events"])),
             evaluation_interval=int(dcfg.get("evaluation_interval", 100)),
+            check_interval_events=int(dcfg.get("check_interval_events", 200)),
+            periodic_expensive_checks_enabled=bool(
+                dcfg.get("periodic_expensive_checks_enabled", False)
+            ),
             min_samples=int(dcfg["min_samples"]),
             feature_ks_p=float(dcfg["feature_checks"]["ks_pvalue_threshold"]),
             feature_psi=float(dcfg["feature_checks"]["psi_threshold"]),
@@ -111,6 +122,7 @@ def build_state(config_path: str | None) -> ServiceState:
             max_threshold=float(acfg["max_threshold"]),
             max_step=float(acfg["max_step"]),
             cooldown_seconds=int(acfg["cooldown_seconds"]),
+            min_history=int(acfg.get("min_history", 200)),
         )
     )
 
@@ -141,20 +153,13 @@ def _severity(score: float, threshold: float) -> str:
     return "low"
 
 
-async def process_event(state: ServiceState, e: Event, source: str = "stream") -> dict[str, Any]:
-    """Single-event pipeline. Used by both stream runner and API /score."""
-    m.EVENTS_INGESTED.labels(source=source).inc()
-    with m.FEATURE_LATENCY.time():
-        feats = state.featurizer.ingest_and_featurize(e)
-
-    if not state.scorer.ready:
-        state.scorer.warmup_update(feats)
-        return {"status": "warming_up", "event_id": e.event_id}
-
-    with m.SCORE_LATENCY.time():
-        score, raw = state.scorer.score(feats)
-    m.EVENTS_SCORED.inc()
-
+def _finalize_scored_event(
+    state: ServiceState,
+    e: Event,
+    feats: dict[str, float],
+    score: float,
+    raw: float,
+) -> dict[str, Any]:
     with m.DRIFT_LATENCY.time():
         drift_state = state.drift.update(feats=feats, score=score, ts=e.ts)
 
@@ -193,7 +198,6 @@ async def process_event(state: ServiceState, e: Event, source: str = "stream") -
         if drift_state.drift_fixed_active:
             m.DRIFT_ALERT_FIXED_POSITIVE_TOTAL.inc()
 
-        # Optional label for benchmark/eval traffic only.
         gt_drift = int(bool(e.drift_tag))
         if gt_drift:
             m.DRIFT_TRUE_LABEL_TOTAL.inc()
@@ -231,11 +235,85 @@ async def process_event(state: ServiceState, e: Event, source: str = "stream") -
             k: {s.kind: float(s.value) for s in stats}
             for k, stats in drift_state.feature_stats.items()
         },
+        "raw_score": float(raw),
     }
+
+
+async def process_event(state: ServiceState, e: Event, source: str = "stream") -> dict[str, Any]:
+    """Single-event pipeline. Used by both stream runner and API /score."""
+    m.EVENTS_INGESTED.labels(source=source).inc()
+    with m.FEATURE_LATENCY.time():
+        feats = state.featurizer.ingest_and_featurize(e)
+
+    if not state.scorer.ready:
+        state.scorer.warmup_update(feats)
+        return {"status": "warming_up", "event_id": e.event_id}
+
+    with m.SCORE_LATENCY.time():
+        score, raw = state.scorer.score(feats)
+    m.EVENTS_SCORED.inc()
+    return _finalize_scored_event(state=state, e=e, feats=feats, score=score, raw=raw)
+
+
+async def process_events_batch(
+    state: ServiceState,
+    events: list[Event],
+    source: str = "stream",
+) -> list[dict[str, Any]]:
+    """Batch pipeline path with vectorized model scoring.
+
+    Why:
+    - Featurization stays per-event and stateful.
+    - Model scoring can be batched to reduce Python overhead.
+    - Drift/adaptation/alert remain per-event to preserve semantics.
+    """
+    if not events:
+        return []
+
+    feats_batch: list[dict[str, float]] = []
+    outputs: list[dict[str, Any] | None] = [None for _ in events]
+
+    # Step 1: ingest + featurize per event (stateful per entity).
+    for i, e in enumerate(events):
+        m.EVENTS_INGESTED.labels(source=source).inc()
+        with m.FEATURE_LATENCY.time():
+            feats = state.featurizer.ingest_and_featurize(e)
+        feats_batch.append(feats)
+
+    # Step 2: warmup if needed, preserving event order and behavior.
+    start_scoring_idx = 0
+    for i, feats in enumerate(feats_batch):
+        if state.scorer.ready:
+            start_scoring_idx = i
+            break
+        state.scorer.warmup_update(feats)
+        outputs[i] = {"status": "warming_up", "event_id": events[i].event_id}
+        start_scoring_idx = i + 1
+
+    if start_scoring_idx >= len(events):
+        return [o if o is not None else {"status": "warming_up"} for o in outputs]
+
+    # Step 3: vectorized model scoring for the ready slice.
+    with m.SCORE_LATENCY.time():
+        scored = state.scorer.score_batch(feats_batch[start_scoring_idx:])
+
+    for rel_i, (score, raw) in enumerate(scored):
+        i = start_scoring_idx + rel_i
+        m.EVENTS_SCORED.inc()
+        outputs[i] = _finalize_scored_event(
+            state=state,
+            e=events[i],
+            feats=feats_batch[i],
+            score=score,
+            raw=raw,
+        )
+
+    return [o if o is not None else {"status": "warming_up"} for o in outputs]
 
 
 async def run_stream_processor(config_path: str | None = None) -> None:
     from src.streaming.sources import DriftScenario, JSONLReplaySource, SyntheticTransactionSource
+    import time
 
     state = build_state(config_path=config_path)
     cfg = state.config
@@ -263,10 +341,45 @@ async def run_stream_processor(config_path: str | None = None) -> None:
         raise ValueError(f"Unknown streaming source: {scfg['source']}")
 
     state.logger.info("stream_started", source=scfg["source"], env=cfg["app"]["env"])
+    mb_cfg = scfg.get("micro_batch", {})
+    micro = MicroBatchConfig(
+        enabled=bool(mb_cfg.get("enabled", False)),
+        batch_size=int(mb_cfg.get("batch_size", 64)),
+        flush_ms=int(mb_cfg.get("flush_ms", 50)),
+    )
 
+    if not micro.enabled:
+        async for e in src.stream():
+            try:
+                await process_event(state, e, source="stream")
+            except Exception as ex:  # noqa: BLE001
+                m.ERRORS_TOTAL.labels(component="stream_processor").inc()
+                state.logger.error("process_error", error=str(ex), event_id=e.event_id)
+        return
+
+    batch: list[Event] = []
+    flush_deadline = 0.0
     async for e in src.stream():
+        now = time.perf_counter()
+        if not batch:
+            flush_deadline = now + (micro.flush_ms / 1000.0)
+        batch.append(e)
+
+        should_flush = len(batch) >= max(1, micro.batch_size) or now >= flush_deadline
+        if not should_flush:
+            continue
+
         try:
-            await process_event(state, e, source="stream")
+            await process_events_batch(state, batch, source="stream")
         except Exception as ex:  # noqa: BLE001
             m.ERRORS_TOTAL.labels(component="stream_processor").inc()
-            state.logger.error("process_error", error=str(ex), event_id=e.event_id)
+            state.logger.error("process_batch_error", error=str(ex), batch_size=len(batch))
+        finally:
+            batch.clear()
+
+    if batch:
+        try:
+            await process_events_batch(state, batch, source="stream")
+        except Exception as ex:  # noqa: BLE001
+            m.ERRORS_TOTAL.labels(component="stream_processor").inc()
+            state.logger.error("process_batch_error", error=str(ex), batch_size=len(batch))
