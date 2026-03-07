@@ -240,6 +240,19 @@ python scripts/evaluate_live_run.py \
 - false alert rate
 - false alert reduction vs fixed-threshold baseline
 
+### 6) Detector Threshold Sweep (validation)
+```bash
+python scripts/sweep_drift_thresholds.py \
+  --request_csv artifacts/live_run/run_<timestamp>/requests.csv \
+  --out_json artifacts/live_run/run_<timestamp>/threshold_sweep_cv.json
+```
+
+Notes:
+- Uses only `drift_evaluated=1` rows.
+- Uses blocked cross-validation + phase-stratified holdout.
+- Objective is F1 with penalties for low precision/recall and high false-alert-rate.
+- Produces a recommended `drift` parameter block for hysteresis/voting thresholds.
+
 Example summary shape:
 ```json
 {

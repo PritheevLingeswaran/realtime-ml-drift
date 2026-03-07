@@ -61,6 +61,10 @@ class RequestRecord:
     critical_alert: int
     adaptive_alert: int
     fixed_alert: int
+    vote_ratio: float
+    psi_component: float
+    ks_component: float
+    prediction_component: float
     score: float
     threshold: float
     error: str
@@ -259,6 +263,10 @@ def write_request_log(path: Path, rows: list[RequestRecord]) -> None:
                 "critical_alert",
                 "adaptive_alert",
                 "fixed_alert",
+                "vote_ratio",
+                "psi_component",
+                "ks_component",
+                "prediction_component",
                 "score",
                 "threshold",
                 "error",
@@ -280,6 +288,10 @@ def write_request_log(path: Path, rows: list[RequestRecord]) -> None:
                     "critical_alert": r.critical_alert,
                     "adaptive_alert": r.adaptive_alert,
                     "fixed_alert": r.fixed_alert,
+                    "vote_ratio": f"{r.vote_ratio:.6f}",
+                    "psi_component": f"{r.psi_component:.6f}",
+                    "ks_component": f"{r.ks_component:.6f}",
+                    "prediction_component": f"{r.prediction_component:.6f}",
                     "score": f"{r.score:.6f}",
                     "threshold": f"{r.threshold:.6f}",
                     "error": r.error,
@@ -452,6 +464,10 @@ async def run_benchmark(cfg: BenchmarkConfig, out_dir: Path, service_pid: int | 
                 drift_evaluated = 0
                 warning_alert = 0
                 critical_alert = 0
+                vote_ratio = 0.0
+                psi_component = 0.0
+                ks_component = 0.0
+                prediction_component = 0.0
                 score = 0.0
                 threshold = 0.0
 
@@ -468,6 +484,12 @@ async def run_benchmark(cfg: BenchmarkConfig, out_dir: Path, service_pid: int | 
                             critical_alert = int(bool(body.get("drift_active", False)))
                             adaptive_alert = critical_alert
                             fixed_alert = int(bool(body.get("drift_fixed_active", False)))
+                            vote_ratio = float(body.get("drift_vote_ratio", 0.0))
+                            psi_component = float(body.get("drift_psi_component", 0.0))
+                            ks_component = float(body.get("drift_ks_component", 0.0))
+                            prediction_component = float(
+                                body.get("drift_prediction_component", 0.0)
+                            )
                     else:
                         err = response.text[:200]
                 except Exception as ex:  # noqa: BLE001
@@ -488,6 +510,10 @@ async def run_benchmark(cfg: BenchmarkConfig, out_dir: Path, service_pid: int | 
                         critical_alert=critical_alert,
                         adaptive_alert=adaptive_alert,
                         fixed_alert=fixed_alert,
+                        vote_ratio=vote_ratio,
+                        psi_component=psi_component,
+                        ks_component=ks_component,
+                        prediction_component=prediction_component,
                         score=score,
                         threshold=threshold,
                         error=err,

@@ -1,0 +1,160 @@
+{
+  "validation_points": 34,
+  "test_points": 24,
+  "best": {
+    "params": {
+      "warning_enter_mult": 0.8,
+      "warning_exit_mult": 0.6,
+      "critical_enter_mult": 1.0,
+      "critical_exit_mult": 0.8,
+      "warning_vote_fraction": 0.2,
+      "critical_vote_fraction": 0.35,
+      "warning_consecutive": 1,
+      "critical_consecutive": 3,
+      "cooldown_windows": 2
+    },
+    "validation_metrics": {
+      "tp": 22,
+      "fp": 6,
+      "tn": 6,
+      "fn": 0,
+      "precision": 0.7857142857142857,
+      "recall": 1.0,
+      "f1": 0.88,
+      "false_alert_rate": 0.21428571428571427
+    },
+    "test_metrics": {
+      "tp": 1,
+      "fp": 21,
+      "tn": 0,
+      "fn": 2,
+      "precision": 0.045454545454545456,
+      "recall": 0.3333333333333333,
+      "f1": 0.08,
+      "false_alert_rate": 0.9545454545454546
+    },
+    "objective": 0.8514285714285714
+  },
+  "top5_validation": [
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.35,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 2
+      },
+      "validation": {
+        "tp": 22,
+        "fp": 6,
+        "tn": 6,
+        "fn": 0,
+        "precision": 0.7857142857142857,
+        "recall": 1.0,
+        "f1": 0.88,
+        "false_alert_rate": 0.21428571428571427
+      },
+      "objective": 0.8514285714285714
+    },
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.35,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 4
+      },
+      "validation": {
+        "tp": 22,
+        "fp": 6,
+        "tn": 6,
+        "fn": 0,
+        "precision": 0.7857142857142857,
+        "recall": 1.0,
+        "f1": 0.88,
+        "false_alert_rate": 0.21428571428571427
+      },
+      "objective": 0.8514285714285714
+    },
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.35,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 6
+      },
+      "validation": {
+        "tp": 22,
+        "fp": 6,
+        "tn": 6,
+        "fn": 0,
+        "precision": 0.7857142857142857,
+        "recall": 1.0,
+        "f1": 0.88,
+        "false_alert_rate": 0.21428571428571427
+      },
+      "objective": 0.8514285714285714
+    },
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.45,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 2
+      },
+      "validation": {
+        "tp": 22,
+        "fp": 6,
+        "tn": 6,
+        "fn": 0,
+        "precision": 0.7857142857142857,
+        "recall": 1.0,
+        "f1": 0.88,
+        "false_alert_rate": 0.21428571428571427
+      },
+      "objective": 0.8514285714285714
+    },
+    {
+      "params": {
+        "warning_enter_mult": 0.8,
+        "warning_exit_mult": 0.6,
+        "critical_enter_mult": 1.0,
+        "critical_exit_mult": 0.8,
+        "warning_vote_fraction": 0.2,
+        "critical_vote_fraction": 0.45,
+        "warning_consecutive": 1,
+        "critical_consecutive": 3,
+        "cooldown_windows": 4
+      },
+      "validation": {
+        "tp": 22,
+        "fp": 6,
+        "tn": 6,
+        "fn": 0,
+        "precision": 0.7857142857142857,
+        "recall": 1.0,
+        "f1": 0.88,
+        "false_alert_rate": 0.21428571428571427
+      },
+      "objective": 0.8514285714285714
+    }
+  ]
+}

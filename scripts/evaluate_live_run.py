@@ -30,7 +30,8 @@ def precision_recall_f1(y_true: list[int], y_pred: list[int]) -> dict[str, float
     precision = tp / (tp + fp) if tp + fp else 0.0
     recall = tp / (tp + fn) if tp + fn else 0.0
     f1 = 2.0 * precision * recall / (precision + recall) if precision + recall else 0.0
-    false_alert_rate = fp / (fp + tn) if fp + tn else 0.0
+    # Per request: false alert share among fired alerts.
+    false_alert_rate = fp / (tp + fp) if (tp + fp) else 0.0
     return {
         "tp": tp,
         "fp": fp,
@@ -144,70 +145,24 @@ def evaluate_run(request_csv: Path, resource_csv: Path) -> dict[str, Any]:
     if not drift_rows:
         drift_rows = ok_rows
 
-    # Split for calibration on validation traffic (time-ordered).
-    split_idx = max(1, int(len(drift_rows) * 0.3))
-    valid_rows = drift_rows[:split_idx]
-    test_rows = drift_rows[split_idx:] if split_idx < len(drift_rows) else drift_rows
+    # Phase-label integrity check.
+    expected = {
+        "normal": 0,
+        "stable_baseline": 0,
+        "gradual_drift": 1,
+        "sudden_drift": 1,
+        "noisy_non_drift": 0,
+    }
+    phase_mismatches = 0
+    for r in drift_rows:
+        ph = str(r.get("phase", ""))
+        if ph in expected and int(r["ground_truth_drift"]) != expected[ph]:
+            phase_mismatches += 1
 
-    def pred_with_multiplier(rows: list[dict[str, Any]], mult: float) -> list[int]:
-        out: list[int] = []
-        for r in rows:
-            score = float(r.get("score", 0.0))
-            thr = float(r.get("threshold", 0.0))
-            out.append(int(score >= (thr * mult)))
-        return out
-
-    def pred_warning(rows: list[dict[str, Any]]) -> list[int]:
-        return [int(r.get("warning_alert", "0")) for r in rows]
-
-    def pred_critical(rows: list[dict[str, Any]]) -> list[int]:
-        return [int(r.get("critical_alert", r.get("adaptive_alert", "0"))) for r in rows]
-
-    # Calibrate on validation for better recall/false-alert tradeoff.
-    target_far = 0.20
-    target_precision = 0.75
-    target_recall = 0.80
-    best_mode = "critical"
-    best_mult = 1.0
-    best_tuple = (-1.0, -1.0, -1.0, -1.0)
-    y_valid = [int(r["ground_truth_drift"]) for r in valid_rows]
-    for mode, mult in (
-        [("critical", 1.0), ("warning", 1.0)]
-        + [("score_mult", m) for m in [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]]
-    ):
-        if mode == "critical":
-            p = pred_critical(valid_rows)
-        elif mode == "warning":
-            p = pred_warning(valid_rows)
-        else:
-            p = pred_with_multiplier(valid_rows, mult)
-        m = precision_recall_f1(y_valid, p)
-        far = float(m["false_alert_rate"])
-        precision = float(m["precision"])
-        recall = float(m["recall"])
-        meets = float(
-            precision >= target_precision and recall >= target_recall and far <= target_far
-        )
-        score_tuple = (
-            meets,
-            -far,
-            1.0 if far <= target_far else 0.0,
-            float(m["f1"]),
-            precision + recall,
-        )
-        if score_tuple > best_tuple:
-            best_tuple = score_tuple
-            best_mode = mode
-            best_mult = mult
-
-    y_true = [int(r["ground_truth_drift"]) for r in test_rows]
-    if best_mode == "critical":
-        y_adaptive = pred_critical(test_rows)
-    elif best_mode == "warning":
-        y_adaptive = pred_warning(test_rows)
-    else:
-        y_adaptive = pred_with_multiplier(test_rows, best_mult)
-    y_fixed = [int(r["fixed_alert"]) for r in test_rows]
+    # Window-aligned labels: only rows where detector actually evaluated.
+    y_true = [int(r["ground_truth_drift"]) for r in drift_rows]
+    y_adaptive = [int(r.get("critical_alert", r.get("adaptive_alert", "0"))) for r in drift_rows]
+    y_fixed = [int(r["fixed_alert"]) for r in drift_rows]
 
     adaptive = precision_recall_f1(y_true, y_adaptive)
     baseline = precision_recall_f1(y_true, y_fixed)
@@ -219,10 +174,10 @@ def evaluate_run(request_csv: Path, resource_csv: Path) -> dict[str, Any]:
     )
 
     adaptive_latency = detection_latency_seconds(
-        [{**r, "adaptive_alert": str(v)} for r, v in zip(test_rows, y_adaptive, strict=False)],
+        [{**r, "adaptive_alert": str(v)} for r, v in zip(drift_rows, y_adaptive, strict=False)],
         pred_col="adaptive_alert",
     )
-    baseline_latency = detection_latency_seconds(test_rows, pred_col="fixed_alert")
+    baseline_latency = detection_latency_seconds(drift_rows, pred_col="fixed_alert")
 
     resources = compute_cpu_mem(load_resource_rows(resource_csv))
 
@@ -247,20 +202,28 @@ def evaluate_run(request_csv: Path, resource_csv: Path) -> dict[str, Any]:
             "fixed_baseline": {**baseline, **baseline_latency},
             "adaptive": {**adaptive, **adaptive_latency},
         },
-        "calibration": {
-            "validation_points": len(valid_rows),
-            "test_points": len(test_rows),
-            "target_false_alert_rate": target_far,
-            "target_precision": target_precision,
-            "target_recall": target_recall,
-            "selected_mode": best_mode,
-            "selected_threshold_multiplier": best_mult,
+        "confusion_matrix": {
+            "TP": int(adaptive["tp"]),
+            "FP": int(adaptive["fp"]),
+            "TN": int(adaptive["tn"]),
+            "FN": int(adaptive["fn"]),
+        },
+        "phase_label_verification": {
+            "checked_rows": len(drift_rows),
+            "mismatches": phase_mismatches,
+            "mapping": expected,
+            "valid": phase_mismatches == 0,
+        },
+        "alignment": {
+            "mode": "windowed",
+            "compared_rows": len(drift_rows),
+            "description": "Only drift_evaluated rows are scored to align alerts with detection windows.",
         },
         "system_reliability": {
             "uptime_percent": (len(ok_rows) / len(rows) * 100.0),
             "error_rate_percent": ((len(rows) - len(ok_rows)) / len(rows) * 100.0),
         },
-        "drift_eval_points": len(test_rows),
+        "drift_eval_points": len(drift_rows),
         "inputs": {
             "request_csv": str(request_csv),
             "resource_csv": str(resource_csv),

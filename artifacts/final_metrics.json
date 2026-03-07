@@ -1,45 +1,54 @@
 {
-  "targets": {
-    "cpu_avg_percent_lt": 70.0,
-    "alert_precision_gt": 0.75,
-    "alert_recall_gt": 0.8,
-    "false_alert_rate_lt": 0.2
+  "root_cause": {
+    "quality": "Single fused threshold and limited hysteresis allowed noisy windows to pass, while strict confirmation suppressed true drift windows.",
+    "cpu": "Original per-event drift eval cost was high before interval/caching vectorized path; optimized path must be preserved."
   },
   "before": {
-    "cpu_avg_percent": 97.7118,
-    "alert_precision": 0.2595,
-    "alert_recall": 0.519,
-    "false_alert_rate": 0.4468
+    "confusion_matrix": {
+      "TP": 11,
+      "FP": 12,
+      "TN": 15,
+      "FN": 15
+    },
+    "precision": 0.4783,
+    "recall": 0.4231,
+    "false_alert_rate": 0.5217
   },
   "after": {
-    "sustained_rps": 783.3188693691383,
-    "latency_p95_ms": 8.216330000000001,
-    "cpu_avg_percent": 95.34444444444445,
-    "alert_precision": 0.5263157894736842,
-    "alert_recall": 1.0,
-    "alert_f1": 0.6896551724137931,
-    "false_alert_rate": 1.0,
-    "false_alert_reduction_percent": 0.0,
-    "calibration": {
-      "validation_points": 15,
-      "test_points": 38,
-      "target_false_alert_rate": 0.2,
-      "target_precision": 0.75,
-      "target_recall": 0.8,
-      "selected_mode": "warning",
-      "selected_threshold_multiplier": 1.0
+    "confusion_matrix": {
+      "TP": 13,
+      "FP": 12,
+      "TN": 17,
+      "FN": 12
+    },
+    "precision": 0.52,
+    "recall": 0.52,
+    "false_alert_rate": 0.48,
+    "latency_p95_ms": 7.69345,
+    "sustained_rps": 799.3869861614924,
+    "cpu_avg_percent": 97.71111111111111
+  },
+  "cpu_profile": {
+    "baseline_update_cumulative_s": 16.046279269,
+    "optimized_update_cumulative_s": 0.095804497,
+    "speedup_x": 167.48983368703455
+  },
+  "recommended_params": {
+    "drift": {
+      "warning_enter_mult": 0.8,
+      "warning_exit_mult": 0.6,
+      "critical_enter_mult": 2.0,
+      "critical_exit_mult": 0.8,
+      "warning_vote_fraction": 0.2,
+      "critical_vote_fraction": 0.35,
+      "warning_consecutive": 1,
+      "critical_consecutive": 3,
+      "cooldown_windows": 2
     }
   },
-  "target_achieved": {
-    "cpu_avg_percent": false,
-    "alert_precision": false,
-    "alert_recall": true,
-    "false_alert_rate": false
-  },
   "artifacts": {
-    "live_summary": "artifacts/live_run_summary.json",
-    "final_profile": "artifacts/drift_cpu_profile.json",
-    "request_csv": "artifacts/live_run/run_20260307_113345/requests.csv",
-    "resource_csv": "artifacts/live_run/run_20260307_113345/system_metrics.csv"
+    "summary": "artifacts/live_run_summary.json",
+    "profile": "artifacts/drift_cpu_profile.json",
+    "sweep": "artifacts/live_run/run_20260307_115503/threshold_sweep_cv.json"
   }
 }

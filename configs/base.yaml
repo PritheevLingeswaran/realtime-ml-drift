@@ -46,10 +46,18 @@ drift:
   fixed_score_threshold: 1.0
   feature_vote_fraction: 0.50
   smoothing_consecutive: 3
-  alert_cooldown_events: 600
+  alert_cooldown_events: 400
   baseline_min_evals: 20
   mean_shift_z_threshold: 2.5
   feature_threshold_k: 1.5
+  warning_enter_mult: 0.80
+  warning_exit_mult: 0.60
+  critical_enter_mult: 2.00
+  critical_exit_mult: 0.80
+  warning_vote_fraction: 0.20
+  critical_vote_fraction: 0.35
+  warning_consecutive: 1
+  critical_consecutive: 3
   score_weights:
     psi: 0.5
     ks: 0.3

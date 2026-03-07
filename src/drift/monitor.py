@@ -40,6 +40,14 @@ class DriftConfig:
     baseline_min_evals: int
     mean_shift_z_threshold: float
     feature_threshold_k: float
+    warning_enter_mult: float
+    warning_exit_mult: float
+    critical_enter_mult: float
+    critical_exit_mult: float
+    warning_vote_fraction: float
+    critical_vote_fraction: float
+    warning_consecutive: int
+    critical_consecutive: int
     adwin_enabled: bool
     adwin_delta: float
 
@@ -52,6 +60,9 @@ class DriftState:
     drift_evaluated: bool = False
     drift_score: float = 0.0
     drift_threshold: float = 0.0
+    psi_component: float = 0.0
+    ks_component: float = 0.0
+    prediction_component: float = 0.0
     vote_ratio: float = 0.0
     last_update_ts: float = 0.0
     feature_stats: dict[str, list[DriftStat]] = field(default_factory=dict)
@@ -66,6 +77,9 @@ class DriftState:
             "drift_evaluated": self.drift_evaluated,
             "drift_score": self.drift_score,
             "drift_threshold": self.drift_threshold,
+            "psi_component": self.psi_component,
+            "ks_component": self.ks_component,
+            "prediction_component": self.prediction_component,
             "vote_ratio": self.vote_ratio,
             "feature_stats": {k: [s.__dict__ for s in v] for k, v in self.feature_stats.items()},
             "score_stats": [s.__dict__ for s in self.score_stats],
@@ -86,7 +100,8 @@ class DriftMonitor:
         self.cfg = cfg
         self.feature_names = feature_names
         self._eval_tick = 0
-        self._consecutive_raw = 0
+        self._warning_streak = 0
+        self._critical_streak = 0
         self._last_alert_eval = -10**9
         self._drift_score_history: deque[float] = deque(maxlen=5000)
         self._ref_feats: dict[str, list[float]] = {k: [] for k in feature_names}
@@ -232,10 +247,13 @@ class DriftMonitor:
         mean_psi_norm = float(np.mean(psi_norm_vals)) if psi_norm_vals else 0.0
         mean_ks_norm = float(np.mean(ks_norm_vals)) if ks_norm_vals else 0.0
 
+        psi_component = float(self.cfg.score_weight_psi) * mean_psi_norm
+        ks_component = float(self.cfg.score_weight_ks) * mean_ks_norm
+        prediction_component = float(self.cfg.score_weight_pred) * pred_shift_norm
         drift_score = (
-            float(self.cfg.score_weight_psi) * mean_psi_norm
-            + float(self.cfg.score_weight_ks) * mean_ks_norm
-            + float(self.cfg.score_weight_pred) * pred_shift_norm
+            psi_component
+            + ks_component
+            + prediction_component
         )
 
         if self.cfg.threshold_method == "adaptive" and len(self._drift_score_history) >= self.cfg.baseline_min_evals:
@@ -246,29 +264,57 @@ class DriftMonitor:
 
         drift_fixed_active = (
             drift_score >= float(self.cfg.fixed_score_threshold)
-            and vote_ratio >= float(self.cfg.feature_vote_fraction)
+            and vote_ratio >= float(self.cfg.critical_vote_fraction)
         )
-        raw_adaptive = (
-            drift_score >= drift_threshold and vote_ratio >= float(self.cfg.feature_vote_fraction)
-        )
-        if self._state.adwin_detected and vote_ratio >= (float(self.cfg.feature_vote_fraction) / 2.0):
-            raw_adaptive = True
+        warning_enter = drift_threshold * float(self.cfg.warning_enter_mult)
+        warning_exit = drift_threshold * float(self.cfg.warning_exit_mult)
+        critical_enter = drift_threshold * float(self.cfg.critical_enter_mult)
+        critical_exit = drift_threshold * float(self.cfg.critical_exit_mult)
+        warning_vote = float(self.cfg.warning_vote_fraction)
+        critical_vote = float(self.cfg.critical_vote_fraction)
 
-        if raw_adaptive:
-            self._consecutive_raw += 1
+        warning_raw = False
+        if self._state.drift_warning_active:
+            warning_raw = drift_score >= warning_exit and vote_ratio >= max(0.0, warning_vote * 0.8)
         else:
-            self._consecutive_raw = 0
+            warning_raw = drift_score >= warning_enter and vote_ratio >= warning_vote
+        if self._state.adwin_detected and vote_ratio >= max(0.0, warning_vote * 0.8):
+            warning_raw = True
 
-        smoothed = self._consecutive_raw >= max(1, int(self.cfg.smoothing_consecutive))
+        if warning_raw:
+            self._warning_streak += 1
+        else:
+            self._warning_streak = 0
+        drift_warning_active = self._warning_streak >= max(1, int(self.cfg.warning_consecutive))
+
+        critical_raw = False
+        if self._state.drift_active:
+            critical_raw = drift_score >= critical_exit and vote_ratio >= max(0.0, critical_vote * 0.8)
+        else:
+            critical_raw = (
+                drift_warning_active
+                and drift_score >= critical_enter
+                and vote_ratio >= critical_vote
+            )
+
+        if critical_raw:
+            self._critical_streak += 1
+        else:
+            self._critical_streak = 0
+
+        smoothed = self._critical_streak >= max(1, int(self.cfg.critical_consecutive))
         cooldown_block = (self._eval_tick - self._last_alert_eval) < max(
             0, int(self.cfg.alert_cooldown_events)
         )
-        drift_warning_active = bool(raw_adaptive)
-        drift_active = smoothed and not cooldown_block
-        if drift_active:
+        if self._state.drift_active and critical_raw:
+            drift_active = True
+        elif smoothed and not cooldown_block:
+            drift_active = True
             self._last_alert_eval = self._eval_tick
+        else:
+            drift_active = False
 
-        if not raw_adaptive:
+        if not warning_raw:
             self._drift_score_history.append(float(drift_score))
             for k in self.feature_names:
                 st = self._state.feature_stats.get(k, [])
@@ -282,6 +328,9 @@ class DriftMonitor:
         self._state.vote_ratio = float(vote_ratio)
         self._state.drift_score = float(drift_score)
         self._state.drift_threshold = float(drift_threshold)
+        self._state.psi_component = float(psi_component)
+        self._state.ks_component = float(ks_component)
+        self._state.prediction_component = float(prediction_component)
         self._state.drift_fixed_active = bool(drift_fixed_active)
         self._state.drift_warning_active = bool(drift_warning_active)
         self._state.drift_active = bool(drift_active)

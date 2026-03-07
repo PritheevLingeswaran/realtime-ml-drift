@@ -23,12 +23,12 @@ FEATURES = [
 ]
 
 
-def make_monitor() -> DriftMonitor:
+def make_monitor(evaluation_interval: int) -> DriftMonitor:
     cfg = DriftConfig(
         reference_window_events=2000,
         current_window_events=800,
         window_size=1000,
-        evaluation_interval=100,
+        evaluation_interval=evaluation_interval,
         min_samples=200,
         feature_ks_p=0.001,
         feature_psi=0.25,
@@ -45,15 +45,24 @@ def make_monitor() -> DriftMonitor:
         score_weight_pred=0.2,
         baseline_min_evals=20,
         mean_shift_z_threshold=2.5,
+        feature_threshold_k=1.5,
+        warning_enter_mult=0.9,
+        warning_exit_mult=0.7,
+        critical_enter_mult=1.1,
+        critical_exit_mult=0.9,
+        warning_vote_fraction=0.25,
+        critical_vote_fraction=0.45,
+        warning_consecutive=1,
+        critical_consecutive=2,
         adwin_enabled=True,
         adwin_delta=0.002,
     )
     return DriftMonitor(cfg=cfg, feature_names=FEATURES)
 
 
-def run_profile(n_events: int, out_json: Path) -> None:
+def _profile_once(n_events: int, evaluation_interval: int) -> dict:
     rng = random.Random(42)
-    monitor = make_monitor()
+    monitor = make_monitor(evaluation_interval=evaluation_interval)
 
     pr = cProfile.Profile()
     pr.enable()
@@ -94,11 +103,18 @@ def run_profile(n_events: int, out_json: Path) -> None:
             }
         )
 
-    out = {
+    return {
         "events_profiled": n_events,
+        "evaluation_interval": evaluation_interval,
         "top3_cpu_functions": top3,
+        "total_cumulative_time_s": top3[0]["cumulative_time_s"] if top3 else 0.0,
         "cprofile_top20": s.getvalue(),
     }
+
+
+def run_profile(n_events: int, out_json: Path) -> None:
+    baseline = _profile_once(n_events=n_events, evaluation_interval=1)
+    optimized = _profile_once(n_events=n_events, evaluation_interval=200)
 
     try:
         from line_profiler import LineProfiler  # type: ignore
@@ -109,18 +125,38 @@ def run_profile(n_events: int, out_json: Path) -> None:
         wrapped(2000)
         buf = io.StringIO()
         lp.print_stats(stream=buf)
-        out["line_profiler"] = buf.getvalue()
+        line_profiler_out = buf.getvalue()
     except Exception:
-        out["line_profiler"] = "line_profiler not installed; skipped"
+        line_profiler_out = "line_profiler not installed; skipped"
+
+    ratio = (
+        baseline["total_cumulative_time_s"] / max(1e-9, optimized["total_cumulative_time_s"])
+    )
+    out = {
+        "baseline": baseline,
+        "optimized": optimized,
+        "speedup_x": ratio,
+        "line_profiler": line_profiler_out,
+    }
 
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(out, indent=2), encoding="utf-8")
-    print(json.dumps({"saved": str(out_json), "top3_cpu_functions": top3}, indent=2))
+    print(
+        json.dumps(
+            {
+                "saved": str(out_json),
+                "baseline_top3": baseline["top3_cpu_functions"],
+                "optimized_top3": optimized["top3_cpu_functions"],
+                "speedup_x": ratio,
+            },
+            indent=2,
+        )
+    )
 
 
 def run_profile_inner(n_events: int) -> None:
     rng = random.Random(7)
-    monitor = make_monitor()
+    monitor = make_monitor(evaluation_interval=200)
     ts = time.time()
     for _ in range(n_events):
         ts += 0.01

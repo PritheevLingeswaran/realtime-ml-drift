@@ -83,6 +83,14 @@ def build_state(config_path: str | None) -> ServiceState:
             baseline_min_evals=int(dcfg.get("baseline_min_evals", 20)),
             mean_shift_z_threshold=float(dcfg.get("mean_shift_z_threshold", 2.5)),
             feature_threshold_k=float(dcfg.get("feature_threshold_k", 1.5)),
+            warning_enter_mult=float(dcfg.get("warning_enter_mult", 1.0)),
+            warning_exit_mult=float(dcfg.get("warning_exit_mult", 0.8)),
+            critical_enter_mult=float(dcfg.get("critical_enter_mult", 1.2)),
+            critical_exit_mult=float(dcfg.get("critical_exit_mult", 1.0)),
+            warning_vote_fraction=float(dcfg.get("warning_vote_fraction", 0.30)),
+            critical_vote_fraction=float(dcfg.get("critical_vote_fraction", 0.50)),
+            warning_consecutive=int(dcfg.get("warning_consecutive", 1)),
+            critical_consecutive=int(dcfg.get("critical_consecutive", 2)),
             adwin_enabled=bool(dcfg["prediction_checks"]["adwin"]["enabled"]),
             adwin_delta=float(dcfg["prediction_checks"]["adwin"]["delta"]),
         ),
@@ -213,6 +221,9 @@ async def process_event(state: ServiceState, e: Event, source: str = "stream") -
         "drift_score": float(drift_state.drift_score),
         "drift_threshold": float(drift_state.drift_threshold),
         "drift_vote_ratio": float(drift_state.vote_ratio),
+        "drift_psi_component": float(drift_state.psi_component),
+        "drift_ks_component": float(drift_state.ks_component),
+        "drift_prediction_component": float(drift_state.prediction_component),
     }
 
 

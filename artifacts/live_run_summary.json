@@ -1,67 +1,81 @@
 {
-  "sustained_rps": 783.3188693691383,
-  "latency_p50_ms": 6.33835,
-  "latency_p95_ms": 8.216330000000001,
-  "latency_p99_ms": 8.697527000000001,
+  "sustained_rps": 799.3869861614924,
+  "latency_p50_ms": 6.1386,
+  "latency_p95_ms": 7.69345,
+  "latency_p99_ms": 8.382559999999998,
   "error_rate_percent": 0.0,
-  "cpu_avg_percent": 95.34444444444445,
+  "cpu_avg_percent": 97.71111111111111,
   "cpu_p95_percent": 100.0,
-  "memory_avg_mb": 210.04079861111111,
-  "memory_p95_mb": 219.2578125,
-  "alert_precision": 0.5263157894736842,
-  "alert_recall": 1.0,
-  "alert_f1": 0.6896551724137931,
+  "memory_avg_mb": 207.39149305555554,
+  "memory_p95_mb": 216.64140625,
+  "alert_precision": 0.52,
+  "alert_recall": 0.52,
+  "alert_f1": 0.52,
   "avg_detection_latency_seconds": 0.0,
   "p95_detection_latency_seconds": 0.0,
-  "false_alert_rate": 1.0,
-  "false_alert_reduction_percent": 0.0,
+  "false_alert_rate": 0.48,
+  "false_alert_reduction_percent": 53.84615384615385,
   "baseline_vs_adaptive": {
     "fixed_baseline": {
-      "tp": 20,
-      "fp": 18,
+      "tp": 25,
+      "fp": 26,
       "fn": 0,
-      "tn": 0,
-      "precision": 0.5263157894736842,
+      "tn": 3,
+      "precision": 0.49019607843137253,
       "recall": 1.0,
-      "f1": 0.6896551724137931,
-      "false_alert_rate": 1.0,
+      "f1": 0.6578947368421052,
+      "false_alert_rate": 0.5098039215686274,
       "segments_total": 1,
       "segments_detected": 1,
       "avg_detection_latency_seconds": 0.0,
       "p95_detection_latency_seconds": 0.0
     },
     "adaptive": {
-      "tp": 20,
-      "fp": 18,
-      "fn": 0,
-      "tn": 0,
-      "precision": 0.5263157894736842,
-      "recall": 1.0,
-      "f1": 0.6896551724137931,
-      "false_alert_rate": 1.0,
+      "tp": 13,
+      "fp": 12,
+      "fn": 12,
+      "tn": 17,
+      "precision": 0.52,
+      "recall": 0.52,
+      "f1": 0.52,
+      "false_alert_rate": 0.48,
       "segments_total": 1,
       "segments_detected": 1,
       "avg_detection_latency_seconds": 0.0,
       "p95_detection_latency_seconds": 0.0
     }
   },
-  "calibration": {
-    "validation_points": 15,
-    "test_points": 38,
-    "target_false_alert_rate": 0.2,
-    "target_precision": 0.75,
-    "target_recall": 0.8,
-    "selected_mode": "warning",
-    "selected_threshold_multiplier": 1.0
+  "confusion_matrix": {
+    "TP": 13,
+    "FP": 12,
+    "TN": 17,
+    "FN": 12
+  },
+  "phase_label_verification": {
+    "checked_rows": 54,
+    "mismatches": 0,
+    "mapping": {
+      "normal": 0,
+      "stable_baseline": 0,
+      "gradual_drift": 1,
+      "sudden_drift": 1,
+      "noisy_non_drift": 0
+    },
+    "valid": true
+  },
+  "alignment": {
+    "mode": "windowed",
+    "compared_rows": 54,
+    "description": "Only drift_evaluated rows are scored to align alerts with detection windows."
   },
   "system_reliability": {
     "uptime_percent": 100.0,
     "error_rate_percent": 0.0
   },
-  "drift_eval_points": 38,
+  "drift_eval_points": 54,
   "inputs": {
-    "request_csv": "artifacts/live_run/run_20260307_113345/requests.csv",
-    "resource_csv": "artifacts/live_run/run_20260307_113345/system_metrics.csv"
+    "request_csv": "artifacts/live_run/run_20260307_115503/requests.csv",
+    "resource_csv": "artifacts/live_run/run_20260307_115503/system_metrics.csv"
   },
-  "generated_at": "2026-03-07T06:04:07Z"
+  "generated_at": "2026-03-07T06:25:33Z"
 }
