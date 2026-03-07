@@ -57,10 +57,7 @@ class EntityWindowStore:
         window = list(self.get_window(e.entity_id))
         # Safety: window includes current event; for features that should be strictly prior,
         # drop the last element when it matches event_id.
-        if window and window[-1].event_id == e.event_id:
-            prior = window[:-1]
-        else:
-            prior = window
+        prior = window[:-1] if window and window[-1].event_id == e.event_id else window
 
         if not prior:
             return {

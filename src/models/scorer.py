@@ -48,9 +48,9 @@ class ModelScorer:
             return
         self._warm_X.append(self._vec(feats))
         if len(self._warm_X) >= self.warmup_events:
-            X = np.vstack(self._warm_X)
-            self.model.fit(X)
-            raw = self.model.score(X)
+            x = np.vstack(self._warm_X)
+            self.model.fit(x)
+            raw = self.model.score(x)
 
             # If IsolationForest: raw higher => normal; invert to anomaly-like
             if self.model_type == "isolation_forest":

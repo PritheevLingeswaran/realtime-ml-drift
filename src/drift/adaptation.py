@@ -30,6 +30,7 @@ class ThresholdController:
     def __init__(self, cfg: AdaptationConfig, window_size: int = 2000) -> None:
         self.cfg = cfg
         self.threshold = float(cfg.initial_threshold)
+        self._initial_threshold = float(cfg.initial_threshold)
         self._scores: deque[float] = deque(maxlen=window_size)
         self._last_change_ts: float = 0.0
 
@@ -60,6 +61,11 @@ class ThresholdController:
         delta = proposed - self.threshold
         if abs(delta) > float(self.cfg.max_step):
             proposed = self.threshold + float(self.cfg.max_step) * (1.0 if delta > 0 else -1.0)
+
+        # Hard guardrail: automation cannot move too far from the initial human-chosen threshold.
+        low = self._initial_threshold - float(self.cfg.max_step)
+        high = self._initial_threshold + float(self.cfg.max_step)
+        proposed = min(high, max(low, proposed))
 
         if proposed != self.threshold:
             self.threshold = proposed

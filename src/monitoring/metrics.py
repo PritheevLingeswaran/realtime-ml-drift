@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Prometheus metrics registry for the realtime-ml-drift service.
 
@@ -7,6 +5,8 @@ Operational principle:
 - Missing time-series is worse than zero. Dashboards/alerts break.
 - So we pre-initialize labeled Counters using .labels(...).inc(0).
 """
+
+from __future__ import annotations
 
 from prometheus_client import Counter, Gauge, Histogram
 

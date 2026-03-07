@@ -8,8 +8,8 @@ from sklearn.ensemble import IsolationForest
 
 
 class AnomalyModel(Protocol):
-    def fit(self, X: np.ndarray) -> None: ...
-    def score(self, X: np.ndarray) -> np.ndarray: ...
+    def fit(self, x: np.ndarray) -> None: ...
+    def score(self, x: np.ndarray) -> np.ndarray: ...
 
 
 @dataclass
@@ -28,12 +28,12 @@ class IsolationForestModel:
             n_jobs=-1,
         )
 
-    def fit(self, X: np.ndarray) -> None:
-        self._m.fit(X)
+    def fit(self, x: np.ndarray) -> None:
+        self._m.fit(x)
 
-    def score(self, X: np.ndarray) -> np.ndarray:
+    def score(self, x: np.ndarray) -> np.ndarray:
         # IsolationForest: higher = more normal; we invert to anomaly-like positive score later.
-        return self._m.score_samples(X)
+        return self._m.score_samples(x)
 
 
 @dataclass
@@ -48,9 +48,9 @@ class ZScoreModel:
     var_: float = 1.0
     n_: int = 0
 
-    def fit(self, X: np.ndarray) -> None:
+    def fit(self, x: np.ndarray) -> None:
         # Fit incremental mean/var over vector norms
-        norms = np.linalg.norm(X, axis=1)
+        norms = np.linalg.norm(x, axis=1)
         for v in norms:
             self.update(float(v))
 
@@ -61,8 +61,8 @@ class ZScoreModel:
         delta2 = v - self.mean_
         self.var_ += delta * delta2
 
-    def score(self, X: np.ndarray) -> np.ndarray:
-        norms = np.linalg.norm(X, axis=1)
+    def score(self, x: np.ndarray) -> np.ndarray:
+        norms = np.linalg.norm(x, axis=1)
         denom = np.sqrt(max(1e-9, self.var_ / max(1, self.n_ - 1)))
         z = (norms - self.mean_) / denom
         # Higher z => more anomalous
