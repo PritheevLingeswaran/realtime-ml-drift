@@ -83,6 +83,9 @@ def build_state(config_path: str | None) -> ServiceState:
             baseline_min_evals=int(dcfg.get("baseline_min_evals", 20)),
             mean_shift_z_threshold=float(dcfg.get("mean_shift_z_threshold", 2.5)),
             feature_threshold_k=float(dcfg.get("feature_threshold_k", 1.5)),
+            adaptive_score_quantile=float(dcfg.get("adaptive_score_quantile", 0.90)),
+            feature_alert_score_threshold=float(dcfg.get("feature_alert_score_threshold", 0.85)),
+            norm_cap=float(dcfg.get("norm_cap", 3.0)),
             warning_enter_mult=float(dcfg.get("warning_enter_mult", 1.0)),
             warning_exit_mult=float(dcfg.get("warning_exit_mult", 0.8)),
             critical_enter_mult=float(dcfg.get("critical_enter_mult", 1.2)),
@@ -224,6 +227,10 @@ async def process_event(state: ServiceState, e: Event, source: str = "stream") -
         "drift_psi_component": float(drift_state.psi_component),
         "drift_ks_component": float(drift_state.ks_component),
         "drift_prediction_component": float(drift_state.prediction_component),
+        "drift_feature_scores": {
+            k: {s.kind: float(s.value) for s in stats}
+            for k, stats in drift_state.feature_stats.items()
+        },
     }
 
 

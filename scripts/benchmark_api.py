@@ -65,6 +65,7 @@ class RequestRecord:
     psi_component: float
     ks_component: float
     prediction_component: float
+    feature_scores_json: str
     score: float
     threshold: float
     error: str
@@ -267,6 +268,7 @@ def write_request_log(path: Path, rows: list[RequestRecord]) -> None:
                 "psi_component",
                 "ks_component",
                 "prediction_component",
+                "feature_scores_json",
                 "score",
                 "threshold",
                 "error",
@@ -292,6 +294,7 @@ def write_request_log(path: Path, rows: list[RequestRecord]) -> None:
                     "psi_component": f"{r.psi_component:.6f}",
                     "ks_component": f"{r.ks_component:.6f}",
                     "prediction_component": f"{r.prediction_component:.6f}",
+                    "feature_scores_json": r.feature_scores_json,
                     "score": f"{r.score:.6f}",
                     "threshold": f"{r.threshold:.6f}",
                     "error": r.error,
@@ -468,6 +471,7 @@ async def run_benchmark(cfg: BenchmarkConfig, out_dir: Path, service_pid: int | 
                 psi_component = 0.0
                 ks_component = 0.0
                 prediction_component = 0.0
+                feature_scores_json = "{}"
                 score = 0.0
                 threshold = 0.0
 
@@ -490,6 +494,9 @@ async def run_benchmark(cfg: BenchmarkConfig, out_dir: Path, service_pid: int | 
                             prediction_component = float(
                                 body.get("drift_prediction_component", 0.0)
                             )
+                            fs = body.get("drift_feature_scores", {})
+                            if isinstance(fs, dict):
+                                feature_scores_json = json.dumps(fs, separators=(",", ":"))
                     else:
                         err = response.text[:200]
                 except Exception as ex:  # noqa: BLE001
@@ -514,6 +521,7 @@ async def run_benchmark(cfg: BenchmarkConfig, out_dir: Path, service_pid: int | 
                         psi_component=psi_component,
                         ks_component=ks_component,
                         prediction_component=prediction_component,
+                        feature_scores_json=feature_scores_json,
                         score=score,
                         threshold=threshold,
                         error=err,

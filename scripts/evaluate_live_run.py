@@ -5,6 +5,7 @@ import csv
 import json
 import statistics
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -132,7 +133,76 @@ def compute_cpu_mem(resources: list[dict[str, Any]]) -> dict[str, float]:
     }
 
 
-def evaluate_run(request_csv: Path, resource_csv: Path) -> dict[str, Any]:
+def _phase_confusion(rows: list[dict[str, Any]], y_pred: list[int]) -> dict[str, Any]:
+    by_phase_true: dict[str, list[int]] = defaultdict(list)
+    by_phase_pred: dict[str, list[int]] = defaultdict(list)
+    for r, pred in zip(rows, y_pred, strict=False):
+        phase = str(r.get("phase", "unknown"))
+        by_phase_true[phase].append(int(r["ground_truth_drift"]))
+        by_phase_pred[phase].append(int(pred))
+
+    out: dict[str, Any] = {}
+    for phase in sorted(by_phase_true.keys()):
+        m = precision_recall_f1(by_phase_true[phase], by_phase_pred[phase])
+        out[phase] = {
+            "TP": int(m["tp"]),
+            "FP": int(m["fp"]),
+            "TN": int(m["tn"]),
+            "FN": int(m["fn"]),
+            "precision": float(m["precision"]),
+            "recall": float(m["recall"]),
+            "f1": float(m["f1"]),
+            "false_alert_rate": float(m["false_alert_rate"]),
+            "points": len(by_phase_true[phase]),
+        }
+    return out
+
+
+def _parse_feature_scores(raw: str) -> dict[str, Any]:
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return parsed
+        return {}
+    except Exception:
+        return {}
+
+
+def _fn_fp_rows(rows: list[dict[str, Any]], y_pred: list[int]) -> dict[str, Any]:
+    fps: list[dict[str, Any]] = []
+    fns: list[dict[str, Any]] = []
+    for r, pred in zip(rows, y_pred, strict=False):
+        true = int(r["ground_truth_drift"])
+        if pred == true:
+            continue
+        record = {
+            "timestamp": float(r["timestamp"]),
+            "request_id": r.get("request_id", ""),
+            "endpoint": r.get("endpoint", ""),
+            "phase": r.get("phase", ""),
+            "ground_truth_drift": true,
+            "predicted_alert": int(pred),
+            "fused_score": float(r.get("score", 0.0)),
+            "vote_ratio": float(r.get("vote_ratio", 0.0)),
+            "threshold": float(r.get("threshold", 0.0)),
+            "psi_component": float(r.get("psi_component", 0.0)),
+            "ks_component": float(r.get("ks_component", 0.0)),
+            "prediction_component": float(r.get("prediction_component", 0.0)),
+            "feature_scores": _parse_feature_scores(r.get("feature_scores_json", "")),
+        }
+        if pred == 1 and true == 0:
+            fps.append(record)
+        elif pred == 0 and true == 1:
+            fns.append(record)
+
+    return {"FP": fps, "FN": fns, "counts": {"FP": len(fps), "FN": len(fns)}}
+
+
+def evaluate_run(
+    request_csv: Path, resource_csv: Path, fn_fp_analysis_out: Path | None = None
+) -> dict[str, Any]:
     rows = load_request_rows(request_csv)
     if not rows:
         raise ValueError(f"No request rows in {request_csv}")
@@ -180,6 +250,13 @@ def evaluate_run(request_csv: Path, resource_csv: Path) -> dict[str, Any]:
     baseline_latency = detection_latency_seconds(drift_rows, pred_col="fixed_alert")
 
     resources = compute_cpu_mem(load_resource_rows(resource_csv))
+    phase_metrics = _phase_confusion(drift_rows, y_adaptive)
+    fn_fp_analysis = _fn_fp_rows(drift_rows, y_adaptive)
+
+    if fn_fp_analysis_out is not None:
+        fn_fp_analysis_out.parent.mkdir(parents=True, exist_ok=True)
+        with open(fn_fp_analysis_out, "w", encoding="utf-8") as f:
+            json.dump(fn_fp_analysis, f, indent=2)
 
     summary = {
         "sustained_rps": len(rows) / duration,
@@ -207,6 +284,12 @@ def evaluate_run(request_csv: Path, resource_csv: Path) -> dict[str, Any]:
             "FP": int(adaptive["fp"]),
             "TN": int(adaptive["tn"]),
             "FN": int(adaptive["fn"]),
+        },
+        "phase_metrics": phase_metrics,
+        "fn_fp_analysis": {
+            "path": str(fn_fp_analysis_out) if fn_fp_analysis_out is not None else None,
+            "FP_count": int(fn_fp_analysis["counts"]["FP"]),
+            "FN_count": int(fn_fp_analysis["counts"]["FN"]),
         },
         "phase_label_verification": {
             "checked_rows": len(drift_rows),
@@ -238,12 +321,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--request_csv", type=Path, required=True)
     p.add_argument("--resource_csv", type=Path, required=True)
     p.add_argument("--out_json", type=Path, default=Path("artifacts/live_run_summary.json"))
+    p.add_argument("--fn_fp_out", type=Path, default=Path("artifacts/fn_fp_analysis.json"))
     return p.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    summary = evaluate_run(args.request_csv, args.resource_csv)
+    summary = evaluate_run(args.request_csv, args.resource_csv, fn_fp_analysis_out=args.fn_fp_out)
 
     args.out_json.parent.mkdir(parents=True, exist_ok=True)
     with open(args.out_json, "w", encoding="utf-8") as f:

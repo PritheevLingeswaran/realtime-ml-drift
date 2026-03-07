@@ -40,6 +40,9 @@ class DriftConfig:
     baseline_min_evals: int
     mean_shift_z_threshold: float
     feature_threshold_k: float
+    adaptive_score_quantile: float
+    feature_alert_score_threshold: float
+    norm_cap: float
     warning_enter_mult: float
     warning_exit_mult: float
     critical_enter_mult: float
@@ -172,6 +175,7 @@ class DriftMonitor:
         triggered_feature_count = 0
         psi_norm_vals: list[float] = []
         ks_norm_vals: list[float] = []
+        feature_fusion_vals: list[float] = []
 
         for k in self.feature_names:
             cur = np.asarray(self._cur_feats[k], dtype=float)
@@ -181,25 +185,37 @@ class DriftMonitor:
             psi_ref = self._ref_psi[k]
             psi_value = psi_with_reference(psi_ref, cur)
             psi_thr = float(self._feat_psi_thr.get(k, self.cfg.feature_psi))
-            psi_trigger = psi_value >= psi_thr
-            psi_norm_vals.append(psi_value / max(1e-9, psi_thr))
+            psi_ratio = psi_value / max(1e-9, psi_thr)
+            psi_norm = min(float(np.log1p(max(0.0, psi_ratio))), float(self.cfg.norm_cap))
+            psi_trigger = psi_ratio >= 1.0
+            psi_norm_vals.append(psi_norm)
 
             ks_value = ks_hist_stat(psi_ref, cur)
             ks_crit = ks_critical_value(self._ref_n_feats[k], len(cur), self.cfg.feature_ks_p)
             ks_ratio = ks_value / max(1e-9, ks_crit)
             ks_ratio_thr = float(self._feat_ks_ratio_thr.get(k, 1.0))
-            ks_trigger = ks_ratio >= ks_ratio_thr
-            ks_norm_vals.append(ks_ratio / max(1e-9, ks_ratio_thr))
+            ks_ratio_norm = ks_ratio / max(1e-9, ks_ratio_thr)
+            ks_norm = min(float(np.log1p(max(0.0, ks_ratio_norm))), float(self.cfg.norm_cap))
+            ks_trigger = ks_ratio_norm >= 1.0
+            ks_norm_vals.append(ks_norm)
             ref_mean = self._ref_mean_feats[k]
             ref_std = self._ref_std_feats[k]
             mean_shift_z = abs(float(np.mean(cur)) - ref_mean) / max(1e-9, ref_std)
+            mean_shift_norm = min(
+                float(
+                    np.log1p(
+                        max(0.0, mean_shift_z / max(1e-9, float(self.cfg.mean_shift_z_threshold)))
+                    )
+                ),
+                float(self.cfg.norm_cap),
+            )
 
             stats = [
                 DriftStat(kind="ks", value=ks_value, threshold=ks_crit, triggered=ks_trigger),
                 DriftStat(
                     kind="psi",
                     value=psi_value,
-                    threshold=float(self.cfg.feature_psi),
+                    threshold=float(psi_thr),
                     triggered=psi_trigger,
                 ),
                 DriftStat(
@@ -210,8 +226,9 @@ class DriftMonitor:
                 ),
             ]
             self._state.feature_stats[k] = stats
-            # Voting is stricter than score accumulation to reduce noisy false positives.
-            if (psi_trigger and ks_trigger) or (mean_shift_z >= float(self.cfg.mean_shift_z_threshold)):
+            feature_fusion = (0.55 * psi_norm) + (0.30 * ks_norm) + (0.15 * mean_shift_norm)
+            feature_fusion_vals.append(feature_fusion)
+            if feature_fusion >= float(self.cfg.feature_alert_score_threshold):
                 triggered_feature_count += 1
 
         # Prediction/score drift.
@@ -232,9 +249,15 @@ class DriftMonitor:
                 triggered=score_psi_trigger,
             ),
         ]
-        pred_shift_norm = max(
-            score_psi / max(1e-9, self.cfg.pred_psi), score_ks / max(1e-9, score_ks_crit)
+        pred_psi_norm = min(
+            float(np.log1p(max(0.0, score_psi / max(1e-9, self.cfg.pred_psi)))),
+            float(self.cfg.norm_cap),
         )
+        pred_ks_norm = min(
+            float(np.log1p(max(0.0, score_ks / max(1e-9, score_ks_crit)))),
+            float(self.cfg.norm_cap),
+        )
+        pred_shift_norm = 0.5 * pred_psi_norm + 0.5 * pred_ks_norm
 
         # Streaming mean shift detector on scores (fast early warning).
         if self._adwin is not None:
@@ -246,6 +269,7 @@ class DriftMonitor:
         vote_ratio = triggered_feature_count / feat_count
         mean_psi_norm = float(np.mean(psi_norm_vals)) if psi_norm_vals else 0.0
         mean_ks_norm = float(np.mean(ks_norm_vals)) if ks_norm_vals else 0.0
+        mean_feature_fusion = float(np.mean(feature_fusion_vals)) if feature_fusion_vals else 0.0
 
         psi_component = float(self.cfg.score_weight_psi) * mean_psi_norm
         ks_component = float(self.cfg.score_weight_ks) * mean_ks_norm
@@ -258,7 +282,8 @@ class DriftMonitor:
 
         if self.cfg.threshold_method == "adaptive" and len(self._drift_score_history) >= self.cfg.baseline_min_evals:
             hist = np.asarray(self._drift_score_history, dtype=float)
-            drift_threshold = float(np.mean(hist) + float(self.cfg.threshold_k) * np.std(hist))
+            q = float(np.quantile(hist, float(self.cfg.adaptive_score_quantile)))
+            drift_threshold = max(float(self.cfg.fixed_score_threshold), q)
         else:
             drift_threshold = float(self.cfg.fixed_score_threshold)
 
@@ -277,7 +302,11 @@ class DriftMonitor:
         if self._state.drift_warning_active:
             warning_raw = drift_score >= warning_exit and vote_ratio >= max(0.0, warning_vote * 0.8)
         else:
-            warning_raw = drift_score >= warning_enter and vote_ratio >= warning_vote
+            warning_raw = (
+                drift_score >= warning_enter
+                and vote_ratio >= warning_vote
+                and mean_feature_fusion >= float(self.cfg.feature_alert_score_threshold) * 0.9
+            )
         if self._state.adwin_detected and vote_ratio >= max(0.0, warning_vote * 0.8):
             warning_raw = True
 
@@ -295,6 +324,7 @@ class DriftMonitor:
                 drift_warning_active
                 and drift_score >= critical_enter
                 and vote_ratio >= critical_vote
+                and mean_feature_fusion >= float(self.cfg.feature_alert_score_threshold)
             )
 
         if critical_raw:
@@ -314,7 +344,10 @@ class DriftMonitor:
         else:
             drift_active = False
 
-        if not warning_raw:
+        calibration_candidate = (
+            vote_ratio <= (warning_vote * 0.8) and not self._state.drift_active
+        ) or (len(self._drift_score_history) < max(50, self.cfg.baseline_min_evals * 3))
+        if calibration_candidate:
             self._drift_score_history.append(float(drift_score))
             for k in self.feature_names:
                 st = self._state.feature_stats.get(k, [])
@@ -370,7 +403,10 @@ class DriftMonitor:
                 arr = np.asarray(psi_hist, dtype=float)
                 self._feat_psi_thr[k] = max(
                     float(self.cfg.feature_psi),
-                    float(np.mean(arr) + float(self.cfg.feature_threshold_k) * np.std(arr)),
+                    float(
+                        np.quantile(arr, float(self.cfg.adaptive_score_quantile))
+                        + float(self.cfg.feature_threshold_k) * np.std(arr)
+                    ),
                 )
 
             ks_hist = self._feat_ks_ratio_hist[k]
@@ -378,5 +414,8 @@ class DriftMonitor:
                 arr = np.asarray(ks_hist, dtype=float)
                 self._feat_ks_ratio_thr[k] = max(
                     1.0,
-                    float(np.mean(arr) + float(self.cfg.feature_threshold_k) * np.std(arr)),
+                    float(
+                        np.quantile(arr, float(self.cfg.adaptive_score_quantile))
+                        + float(self.cfg.feature_threshold_k) * np.std(arr)
+                    ),
                 )

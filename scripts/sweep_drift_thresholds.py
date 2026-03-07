@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+import yaml
 
 
 def load_rows(path: Path) -> list[dict[str, Any]]:
@@ -120,7 +121,32 @@ def objective(m: dict[str, float | int], far_target: float = 0.20) -> float:
     return f1 - penalty_far - penalty_prec - penalty_rec
 
 
-def sweep(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def _parse_float_list(raw: str) -> list[float]:
+    return [float(x.strip()) for x in raw.split(",") if x.strip()]
+
+
+def _parse_int_list(raw: str) -> list[int]:
+    return [int(x.strip()) for x in raw.split(",") if x.strip()]
+
+
+def _load_drift_defaults(path: Path) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+    return dict(cfg.get("drift", {}))
+
+
+def sweep(
+    rows: list[dict[str, Any]],
+    warning_enter_mult: float,
+    warning_exit_mult: float,
+    critical_exit_mult: float,
+    warning_vote_fraction: float,
+    warning_consecutive: int,
+    cooldown_windows: int,
+    critical_enter_values: list[float],
+    critical_vote_values: list[float],
+    critical_consecutive_values: list[int],
+) -> dict[str, Any]:
     if len(rows) < 20:
         raise ValueError("Need at least 20 drift-evaluated rows for sweep")
 
@@ -141,15 +167,15 @@ def sweep(rows: list[dict[str, Any]]) -> dict[str, Any]:
     k_folds = min(4, max(2, len(cv_rows) // 20))
 
     grid = itertools.product(
-        [0.8, 0.9, 1.0, 1.2, 1.4],
-        [0.6, 0.7, 0.8, 1.0],
-        [1.0, 1.2, 1.4, 1.6, 1.8, 2.0],
-        [0.8, 0.9, 1.0, 1.2, 1.4],
-        [0.20, 0.30, 0.40, 0.50],
-        [0.35, 0.45, 0.55, 0.65, 0.75],
-        [1],
-        [2, 3, 4, 5],
-        [2, 4, 6, 8, 10],
+        [warning_enter_mult],
+        [warning_exit_mult],
+        critical_enter_values,
+        [critical_exit_mult],
+        [warning_vote_fraction],
+        critical_vote_values,
+        [warning_consecutive],
+        critical_consecutive_values,
+        [cooldown_windows],
     )
 
     best = None
@@ -205,6 +231,17 @@ def sweep(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "cv_points": len(cv_rows),
         "holdout_points": len(holdout),
         "k_folds": k_folds,
+        "sweep_space": {
+            "critical_enter_values": critical_enter_values,
+            "critical_vote_values": critical_vote_values,
+            "critical_consecutive_values": critical_consecutive_values,
+            "fixed_warning_enter_mult": warning_enter_mult,
+            "fixed_warning_exit_mult": warning_exit_mult,
+            "fixed_critical_exit_mult": critical_exit_mult,
+            "fixed_warning_vote_fraction": warning_vote_fraction,
+            "fixed_warning_consecutive": warning_consecutive,
+            "fixed_cooldown_windows": cooldown_windows,
+        },
         "best": {
             "params": best_params.__dict__,
             "cv_mean": best["cv_mean"],
@@ -219,6 +256,10 @@ def sweep(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Sweep drift thresholds on validation traffic.")
     p.add_argument("--request_csv", type=Path, required=True)
+    p.add_argument("--base_config", type=Path, default=Path("configs/base.yaml"))
+    p.add_argument("--critical_enter_values", default="0.8,1.0,1.2")
+    p.add_argument("--critical_vote_values", default="0.35,0.40,0.45,0.50,0.55,0.60")
+    p.add_argument("--critical_consecutive_values", default="1,2,3")
     p.add_argument("--out_json", type=Path, default=Path("artifacts/threshold_sweep.json"))
     return p.parse_args()
 
@@ -226,7 +267,19 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     rows = load_rows(args.request_csv)
-    out = sweep(rows)
+    drift_cfg = _load_drift_defaults(args.base_config)
+    out = sweep(
+        rows=rows,
+        warning_enter_mult=float(drift_cfg.get("warning_enter_mult", 0.8)),
+        warning_exit_mult=float(drift_cfg.get("warning_exit_mult", 0.6)),
+        critical_exit_mult=float(drift_cfg.get("critical_exit_mult", 0.8)),
+        warning_vote_fraction=float(drift_cfg.get("warning_vote_fraction", 0.2)),
+        warning_consecutive=int(drift_cfg.get("warning_consecutive", 1)),
+        cooldown_windows=int(drift_cfg.get("alert_cooldown_events", 2)),
+        critical_enter_values=_parse_float_list(args.critical_enter_values),
+        critical_vote_values=_parse_float_list(args.critical_vote_values),
+        critical_consecutive_values=_parse_int_list(args.critical_consecutive_values),
+    )
     args.out_json.parent.mkdir(parents=True, exist_ok=True)
     args.out_json.write_text(json.dumps(out, indent=2), encoding="utf-8")
     print(json.dumps(out["best"], indent=2))
