@@ -1,0 +1,41 @@
+{
+  "dataset_size_events": 120000,
+  "reference_size_events": 5000,
+  "window_size_events": 1000,
+  "step_size_events": 1000,
+  "num_windows": 115,
+  "events_processed_per_minute": 43396294.65,
+  "window_processing_latency_avg_ms": 1.37,
+  "window_processing_latency_p95_ms": 1.4478,
+  "fixed_threshold": 0.2,
+  "adaptive_quantile": 0.95,
+  "fixed_detector": {
+    "tp": 24,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "avg_detection_latency_seconds": 0.0,
+    "avg_detection_latency_windows": 0.0,
+    "detected_drift_segments": 3,
+    "total_drift_segments": 3
+  },
+  "adaptive_detector": {
+    "tp": 12,
+    "fp": 0,
+    "fn": 12,
+    "precision": 1.0,
+    "recall": 0.5,
+    "f1": 0.6667,
+    "avg_detection_latency_seconds": 0.0,
+    "avg_detection_latency_windows": 0.0,
+    "detected_drift_segments": 3,
+    "total_drift_segments": 3,
+    "false_alert_reduction_percent_vs_fixed": 0.0
+  },
+  "system_reliability": {
+    "uptime_percent": 100.0,
+    "error_rate_percent": 0.0
+  }
+}

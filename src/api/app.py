@@ -50,6 +50,24 @@ def create_app(config_path: str | None = None) -> FastAPI:
         # Ad-hoc scoring endpoint (same pipeline).
         return await process_event(state, e, source="api")
 
+    @app.post("/predict")
+    async def predict(e: Event) -> dict:
+        # Alias for scoring endpoint; useful for common ML-serving integrations.
+        return await process_event(state, e, source="api")
+
+    @app.post("/detect_drift")
+    async def detect_drift(e: Event) -> dict:
+        # Drift-focused view over the same online scoring + drift pipeline.
+        out = await process_event(state, e, source="api")
+        return {
+            "status": str(out.get("status", "unknown")),
+            "event_id": str(out.get("event_id", "")),
+            "drift_active": bool(out.get("drift_active", False)),
+            "is_anomaly": bool(out.get("is_anomaly", False)),
+            "score": float(out.get("score", 0.0)),
+            "threshold": float(out.get("threshold", 0.0)),
+        }
+
     @app.get("/alerts")
     async def alerts(limit: int = 200) -> list[dict]:
         cfg_lim = int(state.config["api"].get("max_alerts_returned", 200))

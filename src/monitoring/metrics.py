@@ -8,6 +8,9 @@ Operational principle:
 
 from __future__ import annotations
 
+import os
+import time
+
 from prometheus_client import Counter, Gauge, Histogram
 
 # ----------------------------
@@ -60,3 +63,45 @@ DRIFT_LATENCY = Histogram(
 CURRENT_THRESHOLD = Gauge("current_threshold", "Current anomaly threshold")
 DRIFT_ACTIVE = Gauge("drift_active", "1 if drift suspected, else 0")
 ANOMALY_RATE = Gauge("anomaly_rate_recent", "Recent anomaly rate (windowed)")
+
+# Drift quality counters/gauges (optional ground truth via event.drift_tag).
+DRIFT_ALERT_TOTAL = Counter("drift_alert_total", "Total scored events evaluated for drift")
+DRIFT_ALERT_POSITIVE_TOTAL = Counter("drift_alert_positive_total", "Total adaptive drift alerts")
+DRIFT_ALERT_FIXED_POSITIVE_TOTAL = Counter(
+    "drift_alert_fixed_positive_total", "Total fixed-baseline drift alerts"
+)
+DRIFT_TRUE_LABEL_TOTAL = Counter("drift_true_label_total", "Total events with ground-truth drift label")
+DRIFT_TRUE_POSITIVE_TOTAL = Counter("drift_true_positive_total", "Adaptive drift true positives")
+DRIFT_FALSE_POSITIVE_TOTAL = Counter("drift_false_positive_total", "Adaptive drift false positives")
+DRIFT_PRECISION_GAUGE = Gauge("drift_precision", "Adaptive drift precision")
+DRIFT_RECALL_GAUGE = Gauge("drift_recall", "Adaptive drift recall")
+
+CPU_USAGE_PERCENT = Gauge("cpu_usage", "Process CPU usage percent (best-effort)")
+MEMORY_USAGE_BYTES = Gauge("memory_usage", "Process memory usage in bytes (best-effort)")
+
+_PROCESS = None
+_LAST_RESOURCE_TS = 0.0
+
+try:
+    import psutil  # type: ignore
+
+    _PROCESS = psutil.Process(os.getpid())
+except Exception:  # noqa: BLE001
+    _PROCESS = None
+
+
+def update_resource_usage_metrics(sample_interval_s: float = 1.0) -> None:
+    global _LAST_RESOURCE_TS
+    now = time.time()
+    if (now - _LAST_RESOURCE_TS) < float(sample_interval_s):
+        return
+    _LAST_RESOURCE_TS = now
+
+    if _PROCESS is None:
+        return
+
+    try:
+        CPU_USAGE_PERCENT.set(float(_PROCESS.cpu_percent(interval=None)))
+        MEMORY_USAGE_BYTES.set(float(_PROCESS.memory_info().rss))
+    except Exception:  # noqa: BLE001
+        return

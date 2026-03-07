@@ -1,0 +1,45 @@
+{
+  "targets": {
+    "cpu_avg_percent_lt": 70.0,
+    "alert_precision_gt": 0.75,
+    "alert_recall_gt": 0.8,
+    "false_alert_rate_lt": 0.2
+  },
+  "before": {
+    "cpu_avg_percent": 97.7118,
+    "alert_precision": 0.2595,
+    "alert_recall": 0.519,
+    "false_alert_rate": 0.4468
+  },
+  "after": {
+    "sustained_rps": 783.3188693691383,
+    "latency_p95_ms": 8.216330000000001,
+    "cpu_avg_percent": 95.34444444444445,
+    "alert_precision": 0.5263157894736842,
+    "alert_recall": 1.0,
+    "alert_f1": 0.6896551724137931,
+    "false_alert_rate": 1.0,
+    "false_alert_reduction_percent": 0.0,
+    "calibration": {
+      "validation_points": 15,
+      "test_points": 38,
+      "target_false_alert_rate": 0.2,
+      "target_precision": 0.75,
+      "target_recall": 0.8,
+      "selected_mode": "warning",
+      "selected_threshold_multiplier": 1.0
+    }
+  },
+  "target_achieved": {
+    "cpu_avg_percent": false,
+    "alert_precision": false,
+    "alert_recall": true,
+    "false_alert_rate": false
+  },
+  "artifacts": {
+    "live_summary": "artifacts/live_run_summary.json",
+    "final_profile": "artifacts/drift_cpu_profile.json",
+    "request_csv": "artifacts/live_run/run_20260307_113345/requests.csv",
+    "resource_csv": "artifacts/live_run/run_20260307_113345/system_metrics.csv"
+  }
+}

@@ -64,11 +64,25 @@ def build_state(config_path: str | None) -> ServiceState:
         cfg=DriftConfig(
             reference_window_events=int(dcfg["reference_window_events"]),
             current_window_events=int(dcfg["current_window_events"]),
+            window_size=int(dcfg.get("window_size", dcfg["current_window_events"])),
+            evaluation_interval=int(dcfg.get("evaluation_interval", 100)),
             min_samples=int(dcfg["min_samples"]),
             feature_ks_p=float(dcfg["feature_checks"]["ks_pvalue_threshold"]),
             feature_psi=float(dcfg["feature_checks"]["psi_threshold"]),
             pred_ks_p=float(dcfg["prediction_checks"]["ks_pvalue_threshold"]),
             pred_psi=float(dcfg["prediction_checks"]["psi_threshold"]),
+            threshold_method=str(dcfg.get("threshold_method", "adaptive")),
+            threshold_k=float(dcfg.get("threshold_k", 2.0)),
+            fixed_score_threshold=float(dcfg.get("fixed_score_threshold", 1.0)),
+            feature_vote_fraction=float(dcfg.get("feature_vote_fraction", 0.30)),
+            smoothing_consecutive=int(dcfg.get("smoothing_consecutive", 3)),
+            alert_cooldown_events=int(dcfg.get("alert_cooldown_events", 300)),
+            score_weight_psi=float(dcfg.get("score_weights", {}).get("psi", 0.5)),
+            score_weight_ks=float(dcfg.get("score_weights", {}).get("ks", 0.3)),
+            score_weight_pred=float(dcfg.get("score_weights", {}).get("prediction", 0.2)),
+            baseline_min_evals=int(dcfg.get("baseline_min_evals", 20)),
+            mean_shift_z_threshold=float(dcfg.get("mean_shift_z_threshold", 2.5)),
+            feature_threshold_k=float(dcfg.get("feature_threshold_k", 1.5)),
             adwin_enabled=bool(dcfg["prediction_checks"]["adwin"]["enabled"]),
             adwin_delta=float(dcfg["prediction_checks"]["adwin"]["delta"]),
         ),
@@ -161,6 +175,31 @@ async def process_event(state: ServiceState, e: Event, source: str = "stream") -
         state.alerts.add(alert)
         m.ALERTS_EMITTED.labels(severity=sev).inc()
 
+    if drift_state.drift_evaluated:
+        m.DRIFT_ALERT_TOTAL.inc()
+        if drift_state.drift_active:
+            m.DRIFT_ALERT_POSITIVE_TOTAL.inc()
+        if drift_state.drift_fixed_active:
+            m.DRIFT_ALERT_FIXED_POSITIVE_TOTAL.inc()
+
+        # Optional label for benchmark/eval traffic only.
+        gt_drift = int(bool(e.drift_tag))
+        if gt_drift:
+            m.DRIFT_TRUE_LABEL_TOTAL.inc()
+            if drift_state.drift_active:
+                m.DRIFT_TRUE_POSITIVE_TOTAL.inc()
+        elif drift_state.drift_active:
+            m.DRIFT_FALSE_POSITIVE_TOTAL.inc()
+
+        tp = float(m.DRIFT_TRUE_POSITIVE_TOTAL._value.get())
+        fp = float(m.DRIFT_FALSE_POSITIVE_TOTAL._value.get())
+        true_labels = float(m.DRIFT_TRUE_LABEL_TOTAL._value.get())
+        precision = tp / (tp + fp) if (tp + fp) else 0.0
+        recall = tp / true_labels if true_labels else 0.0
+        m.DRIFT_PRECISION_GAUGE.set(precision)
+        m.DRIFT_RECALL_GAUGE.set(recall)
+    m.update_resource_usage_metrics()
+
     return {
         "status": "scored",
         "event_id": e.event_id,
@@ -168,6 +207,12 @@ async def process_event(state: ServiceState, e: Event, source: str = "stream") -
         "threshold": float(new_thr),
         "is_anomaly": bool(is_anom),
         "drift_active": bool(drift_state.drift_active),
+        "drift_fixed_active": bool(drift_state.drift_fixed_active),
+        "drift_warning_active": bool(drift_state.drift_warning_active),
+        "drift_evaluated": bool(drift_state.drift_evaluated),
+        "drift_score": float(drift_state.drift_score),
+        "drift_threshold": float(drift_state.drift_threshold),
+        "drift_vote_ratio": float(drift_state.vote_ratio),
     }
 
 

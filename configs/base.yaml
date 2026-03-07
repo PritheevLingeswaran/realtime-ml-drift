@@ -38,7 +38,22 @@ model:
 drift:
   reference_window_events: 2000
   current_window_events: 800
+  window_size: 1000
+  evaluation_interval: 200
   min_samples: 200
+  threshold_method: adaptive   # adaptive | fixed
+  threshold_k: 1.0
+  fixed_score_threshold: 1.0
+  feature_vote_fraction: 0.50
+  smoothing_consecutive: 3
+  alert_cooldown_events: 600
+  baseline_min_evals: 20
+  mean_shift_z_threshold: 2.5
+  feature_threshold_k: 1.5
+  score_weights:
+    psi: 0.5
+    ks: 0.3
+    prediction: 0.2
   feature_checks:
     ks_pvalue_threshold: 0.001
     psi_threshold: 0.25
