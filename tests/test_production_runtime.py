@@ -7,7 +7,7 @@ from pathlib import Path
 from src.monitoring import metrics as m
 from src.schemas.event_schema import Event
 from src.streaming.runner import build_state, process_event, process_source_with_backpressure
-from src.streaming.state_store import SnapshotStore, build_snapshot_payload
+from src.streaming.state_store import SNAPSHOT_SCHEMA_VERSION, SnapshotStore, build_snapshot_payload
 
 
 def _event(i: int, ts: float) -> Event:
@@ -146,6 +146,72 @@ def test_snapshot_restore_persists_threshold_and_model_state(tmp_path: Path) -> 
     assert state2.runtime.restored is True
     assert abs(state2.threshold.threshold - 0.777) < 1e-9
     assert state2.scorer.ready is True
+    assert state2.runtime.last_snapshot_unix is not None
     mean, std = state2.scorer.normalizer.state()
     assert abs(mean - 0.12) < 1e-9
     assert abs(std - 0.34) < 1e-9
+
+
+def test_snapshot_restore_preserves_seen_event_ids_for_restart_idempotency(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "snapshots" / "state.json"
+    cfg_overlay = tmp_path / "test_state.yaml"
+    cfg_overlay.write_text(
+        "\n".join(
+            [
+                "model:",
+                "  type: zscore",
+                "  warmup_events: 1",
+                "state:",
+                "  restore_on_startup: true",
+                "  snapshot:",
+                "    enabled: true",
+                f"    path: {snapshot_path}",
+                "    interval_seconds: 1",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    state1 = build_state(str(cfg_overlay))
+    state1.scorer._ready = True  # type: ignore[attr-defined]
+    state1.scorer.score = lambda _f: (1.0, 1.0)  # type: ignore[assignment]
+    state1.threshold.threshold = 0.5
+    e = _event(99, 2000.0)
+    with asyncio.Runner() as runner:
+        out1 = runner.run(process_event(state1, e, source="stream", ingest_wall_ts=time.time()))
+    assert out1["status"] == "scored"
+
+    store = SnapshotStore(path=str(snapshot_path))
+    payload = build_snapshot_payload(state1)
+    assert payload["version"] == SNAPSHOT_SCHEMA_VERSION
+    store.save(payload)
+
+    state2 = build_state(str(cfg_overlay))
+    assert state2.runtime.restored is True
+    with asyncio.Runner() as runner:
+        out2 = runner.run(process_event(state2, e, source="stream", ingest_wall_ts=time.time()))
+    assert out2["status"] == "duplicate"
+    assert len(state2.alerts.list(limit=10)) == 1
+
+
+def test_snapshot_version_mismatch_fails_restore_but_boots_cleanly(tmp_path: Path) -> None:
+    snapshot_path = tmp_path / "snapshots" / "state.json"
+    cfg_overlay = tmp_path / "test_state.yaml"
+    cfg_overlay.write_text(
+        "\n".join(
+            [
+                "state:",
+                "  restore_on_startup: true",
+                "  snapshot:",
+                "    enabled: true",
+                f"    path: {snapshot_path}",
+                "    interval_seconds: 1",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    store = SnapshotStore(path=str(snapshot_path))
+    store.save({"version": SNAPSHOT_SCHEMA_VERSION + 1, "saved_at_unix": time.time()})
+    state = build_state(str(cfg_overlay))
+    assert state.runtime.restored is False

@@ -99,17 +99,23 @@ adaptation:
   enabled: true
   target_anomaly_rate: 0.01
   min_history: 200
+  history_window_size: 2000
+  recompute_interval_events: 25
   initial_threshold: 0.9972
   min_threshold: 0.9971
   max_threshold: 0.999
   max_step: 0.0005
   cooldown_seconds: 5
+  audit_log_min_delta: 0.001
+  audit_log_cooldown_seconds: 30
 
 monitoring:
   structured_logs: true
   log_level: INFO
   snapshot_interval_seconds: 120
   alert_buffer_size: 1000
+  logging:
+    sample_rate: 0.01
   prometheus:
     enabled: true
 
@@ -127,6 +133,7 @@ state:
     enabled: true
     path: data/processed/state/snapshot.json
     interval_seconds: 60
+    check_interval_events: 100
 
 security:
   # Dev default only. In production use gateway auth/mTLS and secret management.

@@ -10,6 +10,7 @@ from src.monitoring.benchmarking import (
     compute_fp_reduction_percent,
     safety_check_anomaly_rate,
 )
+from scripts.benchmark import evaluate_performance_gate
 
 
 def test_events_to_detect_logic_without_replay_sleep() -> None:
@@ -108,3 +109,24 @@ def test_target_anomaly_tolerance_check() -> None:
     )
     assert waived
     assert "waiver" in msg
+
+
+def test_benchmark_performance_gate() -> None:
+    passed, throughput_ratio, p99_ratio, _msg = evaluate_performance_gate(
+        baseline_events_per_sec=1000.0,
+        tuned_events_per_sec=960.0,
+        baseline_p99_ms=2.0,
+        tuned_p99_ms=2.2,
+    )
+    assert passed
+    assert abs(throughput_ratio - 0.96) < 1e-9
+    assert abs(p99_ratio - 1.1) < 1e-9
+
+    failed, _throughput_ratio, _p99_ratio, msg = evaluate_performance_gate(
+        baseline_events_per_sec=1000.0,
+        tuned_events_per_sec=900.0,
+        baseline_p99_ms=2.0,
+        tuned_p99_ms=2.5,
+    )
+    assert not failed
+    assert "FAIL" in msg

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from collections import defaultdict, deque
 
 import uvicorn
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import ORJSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import Response
@@ -32,7 +33,7 @@ class _RateLimiter:
 
 
 def _require_admin_key(state: ServiceState, api_key: str | None) -> None:
-    expected = str(state.config.get("security", {}).get("admin_api_key", ""))
+    expected = str(os.getenv("RTML_ADMIN_API_KEY") or state.config.get("security", {}).get("admin_api_key", ""))
     if not expected:
         raise HTTPException(status_code=503, detail="admin_api_key_not_configured")
     if api_key != expected:
@@ -89,6 +90,7 @@ def create_app(config_path: str | None = None) -> FastAPI:
             "restored": bool(state.runtime.restored),
             "restored_state": bool(state.runtime.restored),
             "last_snapshot_unix": state.runtime.last_snapshot_unix,
+            "last_snapshot_time": state.runtime.last_snapshot_unix,
         }
 
     @app.get("/state")
@@ -116,29 +118,62 @@ def create_app(config_path: str | None = None) -> FastAPI:
         }
 
     @app.post("/admin/freeze_adaptation")
-    async def freeze_adaptation(x_api_key: str | None = Header(default=None)) -> dict:
+    async def freeze_adaptation(
+        x_api_key: str | None = Header(default=None),
+        x_admin_actor: str | None = Header(default=None),
+        reason: str = Query(default="manual_freeze"),
+    ) -> dict:
         _require_admin_key(state, x_api_key)
         state.threshold.freeze("admin")
         m.ADMIN_ACTIONS_TOTAL.labels(action="freeze_adaptation", result="success").inc()
-        state.logger.info("admin_action", audit_type="admin", action="freeze_adaptation")
-        return {"status": "ok", "adaptation_frozen": True}
+        actor = x_admin_actor or "unknown"
+        state.logger.info(
+            "admin_action",
+            audit_type="admin",
+            action="freeze_adaptation",
+            actor=actor,
+            reason=reason,
+        )
+        return {"status": "ok", "adaptation_frozen": True, "actor": actor, "reason": reason}
 
     @app.post("/admin/unfreeze_adaptation")
-    async def unfreeze_adaptation(x_api_key: str | None = Header(default=None)) -> dict:
+    async def unfreeze_adaptation(
+        x_api_key: str | None = Header(default=None),
+        x_admin_actor: str | None = Header(default=None),
+        reason: str = Query(default="manual_unfreeze"),
+    ) -> dict:
         _require_admin_key(state, x_api_key)
         state.threshold.unfreeze()
         state.runtime.lag_circuit_open = False
         m.ADMIN_ACTIONS_TOTAL.labels(action="unfreeze_adaptation", result="success").inc()
-        state.logger.info("admin_action", audit_type="admin", action="unfreeze_adaptation")
-        return {"status": "ok", "adaptation_frozen": False}
+        actor = x_admin_actor or "unknown"
+        state.logger.info(
+            "admin_action",
+            audit_type="admin",
+            action="unfreeze_adaptation",
+            actor=actor,
+            reason=reason,
+        )
+        return {"status": "ok", "adaptation_frozen": False, "actor": actor, "reason": reason}
 
     @app.post("/admin/refresh_reference")
-    async def refresh_reference(x_api_key: str | None = Header(default=None)) -> dict:
+    async def refresh_reference(
+        x_api_key: str | None = Header(default=None),
+        x_admin_actor: str | None = Header(default=None),
+        reason: str = Query(default="manual_reference_refresh"),
+    ) -> dict:
         _require_admin_key(state, x_api_key)
         state.drift.refresh_reference()
         m.ADMIN_ACTIONS_TOTAL.labels(action="refresh_reference", result="success").inc()
-        state.logger.info("admin_action", audit_type="admin", action="refresh_reference")
-        return {"status": "ok", "reference_refreshed": True}
+        actor = x_admin_actor or "unknown"
+        state.logger.info(
+            "admin_action",
+            audit_type="admin",
+            action="refresh_reference",
+            actor=actor,
+            reason=reason,
+        )
+        return {"status": "ok", "reference_refreshed": True, "actor": actor, "reason": reason}
 
     @app.get("/alerts")
     async def alerts(limit: int = 200) -> list[dict]:

@@ -11,9 +11,16 @@ benchmark_profile:
     cooldown_seconds: 0
     min_history: 2000
     history_window_size: 50000
+    recompute_interval_events: 200
+    audit_log_min_delta: 0.005
+    audit_log_cooldown_seconds: 60
     adapt_during_drift: true
     rate_feedback_enabled: true
     target_tolerance_abs: 0.0025
+
+monitoring:
+  logging:
+    sample_rate: 0.01
 
 benchmarking:
   target_anomaly_rate: 0.01

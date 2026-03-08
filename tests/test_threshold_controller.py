@@ -149,3 +149,27 @@ def test_adapt_during_drift_flag_allows_benchmark_mode_updates() -> None:
         ts += 1.0
         tc.update(score=score, ts=ts, drift_active=True)
     assert tc.threshold != cfg.initial_threshold
+
+
+def test_update_interval_events_skips_quantile_recompute_between_intervals() -> None:
+    cfg = AdaptationConfig(
+        enabled=True,
+        target_anomaly_rate=0.10,
+        initial_threshold=0.5,
+        min_threshold=0.0,
+        max_threshold=1.0,
+        max_step=1.0,
+        cooldown_seconds=0,
+        min_history=5,
+        update_interval_events=4,
+    )
+    tc = ThresholdController(cfg, window_size=64)
+    ts = 0.0
+    for score in [0.9, 0.8, 0.7, 0.6, 0.5]:
+        ts += 1.0
+        tc.update(score=score, ts=ts, drift_active=False)
+    before = tc.threshold
+    ts += 1.0
+    tc.update(score=0.4, ts=ts, drift_active=False)
+    assert tc.threshold == before
+    assert int(tc.stats()["skipped_interval"]) > 0

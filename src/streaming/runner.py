@@ -45,6 +45,8 @@ class RuntimeState:
     dropped_events_total: int = 0
     offered_events_total: int = 0
     overload_alert_emitted: bool = False
+    duplicate_events_total: int = 0
+    processed_events_total: int = 0
 
 
 @dataclass
@@ -141,7 +143,16 @@ def _mark_seen(state: ServiceState, event_id: str) -> None:
 
 def _is_duplicate(state: ServiceState, event_id: str, source: str) -> bool:
     if event_id in state.runtime.seen_event_set:
+        state.runtime.duplicate_events_total += 1
         m.DUPLICATE_EVENTS_TOTAL.labels(source=source).inc()
+        if state.runtime.duplicate_events_total == 1 or (state.runtime.duplicate_events_total % 1000) == 0:
+            state.logger.info(
+                "duplicate_event_skipped",
+                audit_type="idempotency",
+                event_id=event_id,
+                source=source,
+                duplicate_events_total=int(state.runtime.duplicate_events_total),
+            )
         return True
     return False
 
@@ -248,12 +259,26 @@ def _try_snapshot(state: ServiceState) -> None:
         return
     snap_cfg = state.config.get("state", {}).get("snapshot", {})
     interval_s = float(snap_cfg.get("interval_seconds", 60))
+    check_interval_events = int(snap_cfg.get("check_interval_events", 100))
     now = time.time()
+    if (state.runtime.processed_events_total % max(1, check_interval_events)) != 0:
+        return
     if state.runtime.last_snapshot_unix is not None and (now - state.runtime.last_snapshot_unix) < interval_s:
         return
     payload = build_snapshot_payload(state)
     store.save(payload)
     state.runtime.last_snapshot_unix = now
+
+
+def _should_sample_threshold_log(state: ServiceState, event_id: str) -> bool:
+    sample_rate = float(state.config.get("monitoring", {}).get("logging", {}).get("sample_rate", 0.01))
+    if sample_rate >= 1.0:
+        return True
+    if sample_rate <= 0.0:
+        return False
+    # Why: deterministic hash-based sampling keeps replay behavior stable while avoiding per-event log I/O.
+    bucket = stable_id("threshold-log-sample", event_id)
+    return (int(bucket[:8], 16) / 0xFFFFFFFF) < sample_rate
 
 
 def build_state(config_path: str | None, *, allow_restore: bool | None = None) -> ServiceState:
@@ -340,6 +365,9 @@ def build_state(config_path: str | None, *, allow_restore: bool | None = None) -
             cooldown_seconds=int(acfg["cooldown_seconds"]),
             min_history=int(acfg.get("min_history", 200)),
             history_window_size=int(acfg.get("history_window_size", 2000)),
+            update_interval_events=int(acfg.get("recompute_interval_events", acfg.get("update_interval_events", 1))),
+            audit_log_min_delta=float(acfg.get("audit_log_min_delta", 0.0)),
+            audit_log_cooldown_seconds=float(acfg.get("audit_log_cooldown_seconds", 0.0)),
             adapt_during_drift=bool(acfg.get("adapt_during_drift", False)),
             rate_feedback_enabled=bool(acfg.get("rate_feedback_enabled", False)),
             target_tolerance_abs=float(acfg.get("target_tolerance_abs", 0.0)),
@@ -390,6 +418,7 @@ def build_state(config_path: str | None, *, allow_restore: bool | None = None) -
                 restore_snapshot_payload(state, payload)
                 state.runtime.restored = True
                 state.runtime.restored_at_unix = time.time()
+                state.runtime.last_snapshot_unix = float(payload.get("saved_at_unix", time.time()))
                 state.logger.info("state_restored", snapshot_path=snapshot_store.path)
         except Exception as ex:  # noqa: BLE001
             state.logger.error("state_restore_failed", error=str(ex))
@@ -414,21 +443,42 @@ def _finalize_scored_event(
     *,
     ingest_wall_ts: float | None = None,
 ) -> dict[str, Any]:
+    timings_ms: dict[str, float] = {
+        "feature_engineering": 0.0,
+        "scoring": 0.0,
+        "drift_adwin": 0.0,
+        "drift_ks_psi": 0.0,
+        "adaptation": 0.0,
+        "snapshotting": 0.0,
+        "logging_metrics": 0.0,
+    }
+    drift_t0 = time.perf_counter()
     with m.DRIFT_LATENCY.time():
         drift_state = state.drift.update(feats=feats, score=score, ts=e.ts)
+    _ = (time.perf_counter() - drift_t0) * 1000.0
+    timings_ms["drift_adwin"] = float(drift_state.adwin_time_ms)
+    timings_ms["drift_ks_psi"] = float(drift_state.expensive_checks_time_ms)
 
     old_thr = float(state.threshold.threshold)
+    adapt_t0 = time.perf_counter()
     new_thr = state.threshold.update(score=score, ts=e.ts, drift_active=drift_state.drift_active)
+    timings_ms["adaptation"] = (time.perf_counter() - adapt_t0) * 1000.0
     if old_thr != float(new_thr):
-        # Why: threshold movements are operationally sensitive and must be auditable.
-        state.logger.info(
-            "threshold_changed",
-            audit_type="threshold_change",
-            old_threshold=old_thr,
-            new_threshold=float(new_thr),
-            event_id=e.event_id,
-        )
+        if state.threshold.should_audit_log_change(old_thr, float(new_thr), e.ts) and _should_sample_threshold_log(state, e.event_id):
+            log_t0 = time.perf_counter()
+            # Why: threshold movements are operationally sensitive and must be auditable.
+            state.logger.info(
+                "threshold_changed",
+                audit_type="threshold_change",
+                actor="controller",
+                reason="target_anomaly_rate_control",
+                old_threshold=old_thr,
+                new_threshold=float(new_thr),
+                event_id=e.event_id,
+            )
+            timings_ms["logging_metrics"] += (time.perf_counter() - log_t0) * 1000.0
 
+    metrics_t0 = time.perf_counter()
     m.CURRENT_THRESHOLD.set(float(new_thr))
     m.ANOMALY_RATE.set(float(state.threshold.anomaly_rate()))
     m.DRIFT_ACTIVE.set(1.0 if drift_state.drift_active else 0.0)
@@ -480,8 +530,12 @@ def _finalize_scored_event(
         m.DRIFT_PRECISION_GAUGE.set(precision)
         m.DRIFT_RECALL_GAUGE.set(recall)
     m.update_resource_usage_metrics()
+    timings_ms["logging_metrics"] += (time.perf_counter() - metrics_t0) * 1000.0
 
+    state.runtime.processed_events_total += 1
+    snapshot_t0 = time.perf_counter()
     _try_snapshot(state)
+    timings_ms["snapshotting"] = (time.perf_counter() - snapshot_t0) * 1000.0
 
     return {
         "status": "scored",
@@ -508,6 +562,7 @@ def _finalize_scored_event(
             max(0.0, time.time() - ingest_wall_ts) if ingest_wall_ts is not None else max(0.0, time.time() - e.ts)
         ),
         "queue_depth": float(m.QUEUE_DEPTH._value.get()),
+        "timings_ms": timings_ms,
     }
 
 
@@ -524,20 +579,25 @@ async def process_event(
 
     m.EVENTS_INGESTED.labels(source=source).inc()
     with m.FEATURE_LATENCY.time():
+        feature_t0 = time.perf_counter()
         feats = state.featurizer.ingest_and_featurize(e)
+        feature_ms = (time.perf_counter() - feature_t0) * 1000.0
 
     if source in {"stream", "api"}:
         _mark_seen(state, e.event_id)
 
     if not state.scorer.ready:
         state.scorer.warmup_update(feats)
+        state.runtime.processed_events_total += 1
         _try_snapshot(state)
-        return {"status": "warming_up", "event_id": e.event_id}
+        return {"status": "warming_up", "event_id": e.event_id, "timings_ms": {"feature_engineering": feature_ms, "scoring": 0.0, "drift_adwin": 0.0, "drift_ks_psi": 0.0, "adaptation": 0.0, "snapshotting": 0.0, "logging_metrics": 0.0}}
 
     with m.SCORE_LATENCY.time():
+        score_t0 = time.perf_counter()
         score, raw = state.scorer.score(feats)
+        score_ms = (time.perf_counter() - score_t0) * 1000.0
     m.EVENTS_SCORED.inc()
-    return _finalize_scored_event(
+    out = _finalize_scored_event(
         state=state,
         e=e,
         feats=feats,
@@ -545,6 +605,9 @@ async def process_event(
         raw=raw,
         ingest_wall_ts=ingest_wall_ts,
     )
+    out["timings_ms"]["feature_engineering"] = feature_ms
+    out["timings_ms"]["scoring"] = score_ms
+    return out
 
 
 async def process_events_batch(
@@ -567,7 +630,11 @@ async def process_events_batch(
             continue
         m.EVENTS_INGESTED.labels(source=source).inc()
         with m.FEATURE_LATENCY.time():
+            feature_t0 = time.perf_counter()
             feats_batch[i] = state.featurizer.ingest_and_featurize(e)
+            feature_ms = (time.perf_counter() - feature_t0) * 1000.0
+        if outputs[i] is None:
+            outputs[i] = {"timings_ms": {"feature_engineering": feature_ms, "scoring": 0.0, "drift_adwin": 0.0, "drift_ks_psi": 0.0, "adaptation": 0.0, "snapshotting": 0.0, "logging_metrics": 0.0}}
         if source in {"stream", "api"}:
             _mark_seen(state, e.event_id)
 
@@ -578,14 +645,17 @@ async def process_events_batch(
             continue
         if not state.scorer.ready:
             state.scorer.warmup_update(feats)
-            outputs[i] = {"status": "warming_up", "event_id": events[i].event_id}
+            state.runtime.processed_events_total += 1
+            outputs[i] = {"status": "warming_up", "event_id": events[i].event_id, "timings_ms": outputs[i]["timings_ms"] if outputs[i] else {"feature_engineering": 0.0, "scoring": 0.0, "drift_adwin": 0.0, "drift_ks_psi": 0.0, "adaptation": 0.0, "snapshotting": 0.0, "logging_metrics": 0.0}}
             continue
         score_indices.append(i)
         score_feats.append(feats)
 
     if score_feats:
         with m.SCORE_LATENCY.time():
+            score_t0 = time.perf_counter()
             scored = state.scorer.score_batch(score_feats)
+            batch_score_ms = (time.perf_counter() - score_t0) * 1000.0
         for rel_i, (score, raw) in enumerate(scored):
             i = score_indices[rel_i]
             m.EVENTS_SCORED.inc()
@@ -597,8 +667,9 @@ async def process_events_batch(
                 raw=raw,
                 ingest_wall_ts=(ingest_wall_ts[i] if ingest_wall_ts and i < len(ingest_wall_ts) else None),
             )
+            outputs[i]["timings_ms"]["feature_engineering"] = outputs[i].get("timings_ms", {}).get("feature_engineering", 0.0)
+            outputs[i]["timings_ms"]["scoring"] = batch_score_ms / max(1, len(score_feats))
 
-    _try_snapshot(state)
     return [o if o is not None else {"status": "warming_up"} for o in outputs]
 
 
@@ -736,6 +807,7 @@ def state_view(state: ServiceState) -> dict[str, Any]:
         "drift_active": bool(state.drift.state.drift_active),
         "drift_warning_active": bool(state.drift.state.drift_warning_active),
         "drift_score": float(state.drift.state.drift_score),
+        "anomaly_rate": float(state.threshold.anomaly_rate()),
         "anomaly_rate_recent": float(state.threshold.anomaly_rate()),
         "queue_depth": float(m.QUEUE_DEPTH._value.get()),
         "queue_depth_p95": float(
@@ -750,8 +822,10 @@ def state_view(state: ServiceState) -> dict[str, Any]:
         "max_processing_lag_seconds": float(m.MAX_PROCESSING_LAG_SECONDS._value.get()),
         "dropped_events_total": int(state.runtime.dropped_events_total),
         "drop_rate": float(state.runtime.dropped_events_total / max(1, state.runtime.offered_events_total)),
+        "duplicate_events_total": int(state.runtime.duplicate_events_total),
         "restored": bool(state.runtime.restored),
         "restored_state": bool(state.runtime.restored),
         "restored_at_unix": state.runtime.restored_at_unix,
         "last_snapshot_unix": state.runtime.last_snapshot_unix,
+        "last_snapshot_time": state.runtime.last_snapshot_unix,
     }

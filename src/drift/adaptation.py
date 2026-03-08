@@ -17,6 +17,9 @@ class AdaptationConfig:
     cooldown_seconds: int
     min_history: int = 200
     history_window_size: int = 2000
+    update_interval_events: int = 1
+    audit_log_min_delta: float = 0.0
+    audit_log_cooldown_seconds: float = 0.0
     adapt_during_drift: bool = False
     rate_feedback_enabled: bool = False
     target_tolerance_abs: float = 0.0
@@ -42,11 +45,15 @@ class ThresholdController:
         )
         self._scores: deque[float] = deque(maxlen=history_window_size)
         self._last_change_ts: float = 0.0
+        self._last_logged_threshold: float = float(cfg.initial_threshold)
+        self._last_log_ts: float = 0.0
         self._frozen: bool = False
         self._freeze_reason: str = ""
+        self._update_tick: int = 0
         self._skipped_drift = 0
         self._skipped_cooldown = 0
         self._skipped_history = 0
+        self._skipped_interval = 0
         self._step_limited = 0
         self._bounds_limited = 0
         self._feedback_blocked = 0
@@ -56,6 +63,7 @@ class ThresholdController:
         # Safety: NaN/inf scores corrupt quantile adaptation and can collapse threshold.
         if np.isfinite(score):
             self._scores.append(float(score))
+        self._update_tick += 1
         if not self.cfg.enabled:
             return self.threshold
         if self._frozen:
@@ -73,6 +81,10 @@ class ThresholdController:
 
         if len(self._scores) < max(1, int(self.cfg.min_history)):
             self._skipped_history += 1
+            return self.threshold
+
+        if (self._update_tick % max(1, int(self.cfg.update_interval_events))) != 0:
+            self._skipped_interval += 1
             return self.threshold
 
         # Quantile threshold to hit target anomaly rate: threshold is (1 - target_rate) quantile
@@ -134,10 +146,12 @@ class ThresholdController:
             "skipped_drift": self._skipped_drift,
             "skipped_cooldown": self._skipped_cooldown,
             "skipped_history": self._skipped_history,
+            "skipped_interval": self._skipped_interval,
             "step_limited": self._step_limited,
             "bounds_limited": self._bounds_limited,
             "feedback_blocked": self._feedback_blocked,
             "min_history": int(self.cfg.min_history),
+            "update_interval_events": int(self.cfg.update_interval_events),
         }
 
     def freeze(self, reason: str) -> None:
@@ -158,6 +172,9 @@ class ThresholdController:
             "threshold": float(self.threshold),
             "scores": list(self._scores),
             "last_change_ts": float(self._last_change_ts),
+            "last_logged_threshold": float(self._last_logged_threshold),
+            "last_log_ts": float(self._last_log_ts),
+            "update_tick": int(self._update_tick),
             "frozen": bool(self._frozen),
             "freeze_reason": self._freeze_reason,
             "stats": self.stats(),
@@ -170,7 +187,22 @@ class ThresholdController:
             if np.isfinite(float(s)):
                 self._scores.append(float(s))
         self._last_change_ts = float(state.get("last_change_ts", 0.0))
+        self._last_logged_threshold = float(state.get("last_logged_threshold", self.threshold))
+        self._last_log_ts = float(state.get("last_log_ts", 0.0))
+        self._update_tick = int(state.get("update_tick", 0))
         if bool(state.get("frozen", False)):
             self.freeze(str(state.get("freeze_reason", "restored")))
         else:
             self.unfreeze()
+
+    def should_audit_log_change(self, old_threshold: float, new_threshold: float, ts: float) -> bool:
+        delta = abs(float(new_threshold) - float(self._last_logged_threshold))
+        if delta >= float(self.cfg.audit_log_min_delta):
+            self._last_logged_threshold = float(new_threshold)
+            self._last_log_ts = float(ts)
+            return True
+        if (float(ts) - float(self._last_log_ts)) >= float(self.cfg.audit_log_cooldown_seconds):
+            self._last_logged_threshold = float(new_threshold)
+            self._last_log_ts = float(ts)
+            return True
+        return False

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+import time
 
 from src.drift.adwin import ADWINDetector
 from src.drift.stats import (
@@ -73,6 +74,8 @@ class DriftState:
     feature_stats: dict[str, list[DriftStat]] = field(default_factory=dict)
     score_stats: list[DriftStat] = field(default_factory=list)
     adwin_detected: bool = False
+    adwin_time_ms: float = 0.0
+    expensive_checks_time_ms: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -89,6 +92,8 @@ class DriftState:
             "feature_stats": {k: [s.__dict__ for s in v] for k, v in self.feature_stats.items()},
             "score_stats": [s.__dict__ for s in self.score_stats],
             "adwin_detected": self.adwin_detected,
+            "adwin_time_ms": self.adwin_time_ms,
+            "expensive_checks_time_ms": self.expensive_checks_time_ms,
         }
 
 
@@ -159,10 +164,13 @@ class DriftMonitor:
 
         # ADWIN update is cheap and can run on every event even when expensive
         # distribution checks are periodic.
+        adwin_t0 = time.perf_counter()
         if self._adwin is not None:
             self._state.adwin_detected = bool(self._adwin.update(float(score)))
         else:
             self._state.adwin_detected = False
+        self._state.adwin_time_ms = (time.perf_counter() - adwin_t0) * 1000.0
+        self._state.expensive_checks_time_ms = 0.0
 
         if len(self._cur_scores) < self.cfg.min_samples:
             self._state.drift_active = False
@@ -186,6 +194,7 @@ class DriftMonitor:
             self._state.drift_evaluated = False
             return self._state
 
+        expensive_t0 = time.perf_counter()
         self._state.drift_evaluated = True
         self._state.feature_stats = {}
         triggered_feature_count = 0
@@ -377,6 +386,7 @@ class DriftMonitor:
         self._state.drift_fixed_active = bool(drift_fixed_active)
         self._state.drift_warning_active = bool(drift_warning_active)
         self._state.drift_active = bool(drift_active)
+        self._state.expensive_checks_time_ms = (time.perf_counter() - expensive_t0) * 1000.0
         return self._state
 
     def refresh_reference(self) -> None:

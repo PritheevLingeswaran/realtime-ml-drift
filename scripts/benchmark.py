@@ -82,6 +82,8 @@ class PassResult:
     dropped_events_total: int
     drop_rate: float
     adaptation_stats: dict[str, Any]
+    component_time_total_ms: dict[str, float]
+    component_time_per_event_ms: dict[str, float]
 
 
 def parse_args() -> argparse.Namespace:
@@ -92,6 +94,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--report_md", default="docs/benchmark_report.md")
     p.add_argument(
         "--report_json", default="data/processed/snapshots/benchmark_report.json"
+    )
+    p.add_argument("--perf_profile_md", default="docs/perf_profile.md")
+    p.add_argument(
+        "--perf_profile_json", default="data/processed/snapshots/perf_profile.json"
     )
     p.add_argument(
         "--performance_compare",
@@ -152,6 +158,16 @@ def _apply_benchmark_overrides(state: Any, cfg: dict[str, Any], adaptation_enabl
         # Why: benchmark mode needs a broader score history so anomaly-rate control is
         # stable across long mixed-phase replays instead of overfitting to a few seconds.
         state.threshold._scores = deque(state.threshold._scores, maxlen=history_window_size)
+    if profile_adapt.get("recompute_interval_events") is not None:
+        state.threshold.cfg.update_interval_events = int(profile_adapt["recompute_interval_events"])
+    elif profile_adapt.get("update_interval_events") is not None:
+        state.threshold.cfg.update_interval_events = int(profile_adapt["update_interval_events"])
+    if profile_adapt.get("audit_log_min_delta") is not None:
+        state.threshold.cfg.audit_log_min_delta = float(profile_adapt["audit_log_min_delta"])
+    if profile_adapt.get("audit_log_cooldown_seconds") is not None:
+        state.threshold.cfg.audit_log_cooldown_seconds = float(
+            profile_adapt["audit_log_cooldown_seconds"]
+        )
     if profile_adapt.get("adapt_during_drift") is not None:
         state.threshold.cfg.adapt_during_drift = bool(profile_adapt["adapt_during_drift"])
     if profile_adapt.get("rate_feedback_enabled") is not None:
@@ -182,6 +198,7 @@ def _apply_benchmark_overrides(state: Any, cfg: dict[str, Any], adaptation_enabl
         "target_tolerance_abs": float(state.threshold.cfg.target_tolerance_abs),
         "adapt_during_drift": bool(state.threshold.cfg.adapt_during_drift),
         "history_window_size": int(state.threshold.cfg.history_window_size),
+        "update_interval_events": int(state.threshold.cfg.update_interval_events),
     }
 
 
@@ -194,6 +211,73 @@ def _statistical_validity(alerts: int, labels_available: bool, min_alerts_requir
             f"INSUFFICIENT SAMPLE: alerts={alerts} is below minimum required {min_alerts_required}.",
         )
     return True, f"PASS: alerts={alerts} meets minimum required {min_alerts_required}."
+
+
+def evaluate_performance_gate(
+    baseline_events_per_sec: float,
+    tuned_events_per_sec: float,
+    baseline_p99_ms: float,
+    tuned_p99_ms: float,
+) -> tuple[bool, float, float, str]:
+    throughput_ratio = float(tuned_events_per_sec) / max(1e-9, float(baseline_events_per_sec))
+    p99_ratio = float(tuned_p99_ms) / max(1e-9, float(baseline_p99_ms))
+    passed = throughput_ratio >= 0.95 and p99_ratio <= 1.15
+    message = (
+        f"{'PASS' if passed else 'FAIL'}: tuned throughput ratio={throughput_ratio:.4f} "
+        f"(min 0.9500), tuned p99 ratio={p99_ratio:.4f} (max 1.1500)."
+    )
+    return passed, throughput_ratio, p99_ratio, message
+
+
+def build_perf_profile(report: dict[str, Any]) -> dict[str, Any]:
+    base = report["passes"]["baseline"]["component_profile_ms"]["per_event"]
+    tuned = report["passes"]["tuned"]["component_profile_ms"]["per_event"]
+
+    def _rows(side: dict[str, float]) -> list[dict[str, float | str]]:
+        total = sum(float(v) for v in side.values())
+        return [
+            {
+                "component": name,
+                "ms_per_event": float(value),
+                "percent_of_total": (float(value) / max(1e-9, total)) * 100.0,
+            }
+            for name, value in side.items()
+        ]
+
+    regressions = [
+        {
+            "component": name,
+            "baseline_ms_per_event": float(base[name]),
+            "tuned_ms_per_event": float(tuned[name]),
+            "delta_ms_per_event": float(tuned[name]) - float(base[name]),
+            "delta_percent": ((float(tuned[name]) - float(base[name])) / max(1e-9, float(base[name]))) * 100.0,
+        }
+        for name in base
+    ]
+    regressions.sort(key=lambda row: row["delta_ms_per_event"], reverse=True)
+    return {
+        "baseline": _rows(base),
+        "tuned": _rows(tuned),
+        "top_regressions": regressions[:3],
+    }
+
+
+def render_perf_profile_md(profile: dict[str, Any]) -> str:
+    def _table(title: str, rows: list[dict[str, Any]]) -> str:
+        lines = [f"## {title}", "", "| Component | ms/event | % total |", "|---|---:|---:|"]
+        for row in rows:
+            lines.append(
+                f"| `{row['component']}` | {row['ms_per_event']:.4f} | {row['percent_of_total']:.2f}% |"
+            )
+        return "\n".join(lines)
+
+    regressions = ["## Top Regressions", "", "| Component | Baseline ms/event | Tuned ms/event | Delta ms/event | Delta % |", "|---|---:|---:|---:|---:|"]
+    for row in profile["top_regressions"]:
+        regressions.append(
+            f"| `{row['component']}` | {row['baseline_ms_per_event']:.4f} | {row['tuned_ms_per_event']:.4f} | "
+            f"{row['delta_ms_per_event']:.4f} | {row['delta_percent']:.2f}% |"
+        )
+    return "\n\n".join(["# Performance Profile", _table("Baseline", profile["baseline"]), _table("Tuned", profile["tuned"]), "\n".join(regressions)])
 
 
 def run_pass(
@@ -216,6 +300,15 @@ def run_pass(
     drift_flags: list[bool] | None = [] if labels_available else None
     alert_flags: list[bool] = []
     lag_samples_s: list[float] = []
+    component_totals_ms = {
+        "feature_engineering": 0.0,
+        "scoring": 0.0,
+        "drift_adwin": 0.0,
+        "drift_ks_psi": 0.0,
+        "adaptation": 0.0,
+        "snapshotting": 0.0,
+        "logging_metrics": 0.0,
+    }
 
     first_drift_idx = None
     first_detect_idx = None
@@ -275,6 +368,9 @@ def run_pass(
                     drift_flags.append(is_drift)
                 is_alert = bool(out.get("is_anomaly", False))
                 alert_flags.append(is_alert)
+                timings_ms = out.get("timings_ms", {})
+                for key in component_totals_ms:
+                    component_totals_ms[key] += float(timings_ms.get(key, 0.0))
 
                 if labels_available and first_drift_idx is None and is_drift:
                     first_drift_idx = scored
@@ -366,6 +462,8 @@ def run_pass(
         dropped_events_total=int(runtime_state["dropped_events_total"]),
         drop_rate=float(runtime_state["drop_rate"]),
         adaptation_stats=state.threshold.stats(),
+        component_time_total_ms=dict(component_totals_ms),
+        component_time_per_event_ms={k: (v / max(1, scored)) for k, v in component_totals_ms.items()},
     )
 
     return pass_result, applied
@@ -437,6 +535,10 @@ def asdict_pass(p: PassResult) -> dict[str, Any]:
             "max": p.processing_lag_max_s,
         },
         "adaptation_stats": p.adaptation_stats,
+        "component_profile_ms": {
+            "total": p.component_time_total_ms,
+            "per_event": p.component_time_per_event_ms,
+        },
     }
 
 
@@ -472,6 +574,14 @@ def render_markdown(report: dict[str, Any]) -> str:
             return format(v, fmt)
         return str(v)
 
+    top_regressions = "\n".join(
+        [
+            f"- {row['component']}: baseline `{row['baseline_ms']:.4f} ms/event`, "
+            f"tuned `{row['tuned_ms']:.4f} ms/event`, delta `{row['delta_ms']:.4f}`"
+            for row in cmp_["component_profile_top_regressions_per_event_ms"]
+        ]
+    )
+
     return f"""# Benchmark Report
 
 ## Run Context
@@ -501,6 +611,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 - Queue depth p95: `{base['queue']['queue_depth_p95']:.4f}`
 - Dropped events / drop rate: `{base['queue']['dropped_events_total']}` / `{base['queue']['drop_rate']:.6f}`
 - Processing lag p50/p95/max: `{base['processing_lag_seconds']['p50']:.6f}` / `{base['processing_lag_seconds']['p95']:.6f}` / `{base['processing_lag_seconds']['max']:.6f}` sec
+- Component time per event (feature_engineering/scoring/drift_adwin/drift_ks_psi/adaptation/snapshotting/logging_metrics ms): `{base['component_profile_ms']['per_event']['feature_engineering']:.4f}` / `{base['component_profile_ms']['per_event']['scoring']:.4f}` / `{base['component_profile_ms']['per_event']['drift_adwin']:.4f}` / `{base['component_profile_ms']['per_event']['drift_ks_psi']:.4f}` / `{base['component_profile_ms']['per_event']['adaptation']:.4f}` / `{base['component_profile_ms']['per_event']['snapshotting']:.4f}` / `{base['component_profile_ms']['per_event']['logging_metrics']:.4f}`
 
 ## Tuned Pass (adaptation enabled)
 - Statistical validity: `{tuned['statistical_validity']['message']}`
@@ -519,6 +630,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 - Queue depth p95: `{tuned['queue']['queue_depth_p95']:.4f}`
 - Dropped events / drop rate: `{tuned['queue']['dropped_events_total']}` / `{tuned['queue']['drop_rate']:.6f}`
 - Processing lag p50/p95/max: `{tuned['processing_lag_seconds']['p50']:.6f}` / `{tuned['processing_lag_seconds']['p95']:.6f}` / `{tuned['processing_lag_seconds']['max']:.6f}` sec
+- Component time per event (feature_engineering/scoring/drift_adwin/drift_ks_psi/adaptation/snapshotting/logging_metrics ms): `{tuned['component_profile_ms']['per_event']['feature_engineering']:.4f}` / `{tuned['component_profile_ms']['per_event']['scoring']:.4f}` / `{tuned['component_profile_ms']['per_event']['drift_adwin']:.4f}` / `{tuned['component_profile_ms']['per_event']['drift_ks_psi']:.4f}` / `{tuned['component_profile_ms']['per_event']['adaptation']:.4f}` / `{tuned['component_profile_ms']['per_event']['snapshotting']:.4f}` / `{tuned['component_profile_ms']['per_event']['logging_metrics']:.4f}`
 
 ## Baseline vs Tuned
 - False positive reduction: `{_fmt(cmp_['false_positive_reduction_percent'])}%`
@@ -526,6 +638,9 @@ def render_markdown(report: dict[str, Any]) -> str:
 - Anomaly rate change (tuned-baseline): `{cmp_['anomaly_rate_change']:.6f}`
 - Drift detection delay change seconds (tuned-baseline): `{cmp_['detection_delay_seconds_change']}`
 - Drift detection delay change events (tuned-baseline): `{cmp_['detection_delay_events_change']}`
+- Performance gate: `{cmp_['performance_gate']['message']}`
+- Top per-event regressions:
+{top_regressions}
 {perf_section}
 
 ## Safety Gate
@@ -620,6 +735,13 @@ def main() -> int:
         else "INSUFFICIENT SAMPLE"
     )
 
+    perf_gate_passed, throughput_ratio, p99_ratio, perf_gate_msg = evaluate_performance_gate(
+        baseline_events_per_sec=baseline.events_per_sec,
+        tuned_events_per_sec=tuned.events_per_sec,
+        baseline_p99_ms=baseline.latency_p99_ms,
+        tuned_p99_ms=tuned.latency_p99_ms,
+    )
+
     detection_seconds_delta = None
     if baseline.detection_delay_seconds is not None and tuned.detection_delay_seconds is not None:
         detection_seconds_delta = tuned.detection_delay_seconds - baseline.detection_delay_seconds
@@ -652,7 +774,7 @@ def main() -> int:
         tolerance_abs=tolerance_abs,
         guardrail_blocked=guardrail_blocked,
     )
-    passed = anomaly_passed and target_passed
+    passed = anomaly_passed and target_passed and perf_gate_passed
 
     report = {
         "inputs": {
@@ -687,6 +809,25 @@ def main() -> int:
             "anomaly_rate_change": tuned.anomaly_rate - baseline.anomaly_rate,
             "detection_delay_seconds_change": detection_seconds_delta,
             "detection_delay_events_change": detection_events_delta,
+            "performance_gate": {
+                "passed": perf_gate_passed,
+                "throughput_ratio": throughput_ratio,
+                "p99_latency_ratio": p99_ratio,
+                "message": perf_gate_msg,
+            },
+            "component_profile_top_regressions_per_event_ms": sorted(
+                (
+                    {
+                        "component": k,
+                        "baseline_ms": baseline.component_time_per_event_ms[k],
+                        "tuned_ms": tuned.component_time_per_event_ms[k],
+                        "delta_ms": tuned.component_time_per_event_ms[k] - baseline.component_time_per_event_ms[k],
+                    }
+                    for k in baseline.component_time_per_event_ms
+                ),
+                key=lambda row: row["delta_ms"],
+                reverse=True,
+            )[:3],
         },
         "performance_comparison": perf_compare,
         "safety": {
@@ -696,6 +837,12 @@ def main() -> int:
                     "passed": anomaly_passed,
                     "message": anomaly_msg,
                 },
+                "tuned_performance_regression": {
+                    "passed": perf_gate_passed,
+                    "message": perf_gate_msg,
+                    "throughput_ratio": throughput_ratio,
+                    "p99_latency_ratio": p99_ratio,
+                },
                 "target_anomaly_tolerance": {
                     "passed": target_passed,
                     "message": target_msg,
@@ -704,19 +851,27 @@ def main() -> int:
                     "guardrail_blocked": guardrail_blocked,
                 },
             },
-            "message": f"{anomaly_msg} | {target_msg}",
+            "message": f"{anomaly_msg} | {perf_gate_msg} | {target_msg}",
         },
         "generated_at_unix": time.time(),
     }
 
     md_path = Path(args.report_md)
     json_path = Path(args.report_json)
+    perf_md_path = Path(args.perf_profile_md)
+    perf_json_path = Path(args.perf_profile_json)
     md_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.parent.mkdir(parents=True, exist_ok=True)
+    perf_md_path.parent.mkdir(parents=True, exist_ok=True)
+    perf_json_path.parent.mkdir(parents=True, exist_ok=True)
 
     md = render_markdown(report)
+    perf_profile = build_perf_profile(report)
+    perf_md = render_perf_profile_md(perf_profile)
     md_path.write_text(md, encoding="utf-8")
     json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    perf_md_path.write_text(perf_md, encoding="utf-8")
+    perf_json_path.write_text(json.dumps(perf_profile, indent=2), encoding="utf-8")
 
     print(md)
     print(
@@ -728,6 +883,8 @@ def main() -> int:
     )
     print(f"\nWrote Markdown report: {md_path}")
     print(f"Wrote JSON report: {json_path}")
+    print(f"Wrote performance profile Markdown: {perf_md_path}")
+    print(f"Wrote performance profile JSON: {perf_json_path}")
 
     return 0 if passed else 2
 
