@@ -5,9 +5,10 @@ import os
 import time
 from collections import deque
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
 import structlog
 
 from src.drift.adaptation import AdaptationConfig, ThresholdController
@@ -38,8 +39,12 @@ class RuntimeState:
     restored_at_unix: float | None = None
     last_snapshot_unix: float | None = None
     lag_circuit_open: bool = False
+    lag_samples_seconds: deque[float] = field(default_factory=lambda: deque(maxlen=5000))
+    queue_depth_samples: deque[float] = field(default_factory=lambda: deque(maxlen=5000))
     max_processing_lag_seconds: float = 0.0
     dropped_events_total: int = 0
+    offered_events_total: int = 0
+    overload_alert_emitted: bool = False
 
 
 @dataclass
@@ -149,21 +154,81 @@ def _emit_lag_circuit_alert(state: ServiceState, lag_s: float) -> None:
         event_id="lag-circuit-breaker",
         score=1.0,
         threshold=1.0,
-        severity="high",
+        severity="critical",
         reason="processing_lag_threshold_exceeded",
         drift_state={"processing_lag_seconds": float(lag_s)},
         metadata={"component": "stream_processor"},
     )
     state.alerts.add(alert)
-    m.ALERTS_EMITTED.labels(severity="high").inc()
+    m.ALERTS_EMITTED.labels(severity="critical").inc()
 
 
-def _apply_processing_lag(state: ServiceState, ingest_wall_ts: float | None) -> None:
-    if ingest_wall_ts is None:
+def _emit_drop_alert(state: ServiceState, queue_depth: int) -> None:
+    if state.runtime.overload_alert_emitted:
         return
-    lag_s = max(0.0, time.time() - float(ingest_wall_ts))
+    state.runtime.overload_alert_emitted = True
+    drop_rate = state.runtime.dropped_events_total / max(1, state.runtime.offered_events_total)
+    alert = Alert(
+        alert_id=stable_id("overload_drop", int(time.time())),
+        ts=float(time.time()),
+        entity_id="system",
+        event_id="queue-overload-drop",
+        score=1.0,
+        threshold=1.0,
+        severity="critical",
+        reason="queue_overload_drop_policy_triggered",
+        drift_state={},
+        metadata={
+            "component": "stream_processor",
+            "queue_depth": int(queue_depth),
+            "dropped_events_total": int(state.runtime.dropped_events_total),
+            "offered_events_total": int(state.runtime.offered_events_total),
+            "drop_rate": float(drop_rate),
+            "overload_policy": "drop",
+        },
+    )
+    state.alerts.add(alert)
+    m.ALERTS_EMITTED.labels(severity="critical").inc()
+
+
+def _record_queue_depth(state: ServiceState, depth: int) -> None:
+    depth_f = float(max(0, depth))
+    state.runtime.queue_depth_samples.append(depth_f)
+    m.QUEUE_DEPTH.set(depth_f)
+
+
+def _record_drop(state: ServiceState, queue_depth: int) -> None:
+    state.runtime.dropped_events_total += 1
+    m.DROPPED_EVENTS_TOTAL.inc()
+    m.QUEUE_OVERFLOW_TOTAL.labels(policy="drop").inc()
+    drop_rate = state.runtime.dropped_events_total / max(1, state.runtime.offered_events_total)
+    m.DROP_RATE.set(float(drop_rate))
+    _emit_drop_alert(state, queue_depth)
+    if state.runtime.dropped_events_total == 1 or (state.runtime.dropped_events_total % 100) == 0:
+        # Why: explicit overload drops are operationally significant and must leave an audit trail.
+        state.logger.error(
+            "overload_drop",
+            audit_type="overload",
+            reason="queue_full",
+            overload_policy="drop",
+            queue_depth=int(queue_depth),
+            dropped_events_total=int(state.runtime.dropped_events_total),
+            offered_events_total=int(state.runtime.offered_events_total),
+            drop_rate=float(drop_rate),
+        )
+
+
+def _apply_processing_lag(state: ServiceState, event_ts: float | None, ingest_wall_ts: float | None) -> None:
+    now = time.time()
+    queue_lag_s = max(0.0, now - float(ingest_wall_ts)) if ingest_wall_ts is not None else None
+    event_age_s = max(0.0, now - float(event_ts)) if event_ts is not None else None
+    lag_s = queue_lag_s if queue_lag_s is not None else event_age_s
+    if lag_s is None:
+        return
+    state.runtime.lag_samples_seconds.append(lag_s)
     state.runtime.max_processing_lag_seconds = max(state.runtime.max_processing_lag_seconds, lag_s)
     m.PROCESSING_LAG_SECONDS.set(lag_s)
+    m.PROCESSING_LAG_HISTOGRAM.observe(event_age_s if event_age_s is not None else lag_s)
     m.MAX_PROCESSING_LAG_SECONDS.set(state.runtime.max_processing_lag_seconds)
 
     lag_limit = float(
@@ -274,6 +339,10 @@ def build_state(config_path: str | None, *, allow_restore: bool | None = None) -
             max_step=float(acfg["max_step"]),
             cooldown_seconds=int(acfg["cooldown_seconds"]),
             min_history=int(acfg.get("min_history", 200)),
+            history_window_size=int(acfg.get("history_window_size", 2000)),
+            adapt_during_drift=bool(acfg.get("adapt_during_drift", False)),
+            rate_feedback_enabled=bool(acfg.get("rate_feedback_enabled", False)),
+            target_tolerance_abs=float(acfg.get("target_tolerance_abs", 0.0)),
         )
     )
 
@@ -294,10 +363,7 @@ def build_state(config_path: str | None, *, allow_restore: bool | None = None) -
 
     # Initialize metrics state
     m.CURRENT_THRESHOLD.set(float(threshold.threshold))
-    m.QUEUE_DEPTH.set(0.0)
-    m.PROCESSING_LAG_SECONDS.set(0.0)
-    m.MAX_PROCESSING_LAG_SECONDS.set(0.0)
-
+    m.DROP_RATE.set(0.0)
     state = ServiceState(
         config=cfg,
         featurizer=featurizer,
@@ -309,6 +375,9 @@ def build_state(config_path: str | None, *, allow_restore: bool | None = None) -
         runtime=runtime,
         snapshot_store=snapshot_store,
     )
+    _record_queue_depth(state, 0)
+    m.PROCESSING_LAG_SECONDS.set(0.0)
+    m.MAX_PROCESSING_LAG_SECONDS.set(0.0)
 
     # Best-effort restore.
     should_restore = bool(cfg.get("state", {}).get("restore_on_startup", True))
@@ -364,7 +433,7 @@ def _finalize_scored_event(
     m.ANOMALY_RATE.set(float(state.threshold.anomaly_rate()))
     m.DRIFT_ACTIVE.set(1.0 if drift_state.drift_active else 0.0)
 
-    _apply_processing_lag(state, ingest_wall_ts)
+    _apply_processing_lag(state, e.ts, ingest_wall_ts)
 
     is_anom = score >= new_thr
     if is_anom:
@@ -435,7 +504,10 @@ def _finalize_scored_event(
             for k, stats in drift_state.feature_stats.items()
         },
         "raw_score": float(raw),
-        "processing_lag_seconds": float(max(0.0, time.time() - ingest_wall_ts)) if ingest_wall_ts else 0.0,
+        "processing_lag_seconds": float(
+            max(0.0, time.time() - ingest_wall_ts) if ingest_wall_ts is not None else max(0.0, time.time() - e.ts)
+        ),
+        "queue_depth": float(m.QUEUE_DEPTH._value.get()),
     }
 
 
@@ -542,7 +614,11 @@ async def process_source_with_backpressure(state: ServiceState, source: Any, *, 
 
     ingest_cfg = scfg.get("ingestion", {})
     queue_max = int(ingest_cfg.get("queue_max_size", 5000))
-    drop_on_overflow = bool(ingest_cfg.get("drop_on_overflow", False))
+    overload_policy = str(ingest_cfg.get("overload_policy", "")).strip().lower()
+    if not overload_policy:
+        overload_policy = "drop" if bool(ingest_cfg.get("drop_on_overflow", False)) else "backpressure"
+    if overload_policy not in {"backpressure", "drop"}:
+        raise ValueError(f"Unsupported overload_policy: {overload_policy}")
 
     queue: asyncio.Queue[QueueItem] = asyncio.Queue(maxsize=max(1, queue_max))
     stop = asyncio.Event()
@@ -551,32 +627,32 @@ async def process_source_with_backpressure(state: ServiceState, source: Any, *, 
         try:
             if is_kafka:
                 async for e, rec in source.stream():
+                    state.runtime.offered_events_total += 1
                     item = QueueItem(
                         event=e,
                         ingest_wall_ts=time.time(),
                         on_success=(lambda rec=rec: source.commit(rec)),
                     )
-                    if queue.full() and drop_on_overflow:
-                        state.runtime.dropped_events_total += 1
-                        m.DROPPED_EVENTS_TOTAL.inc()
-                        m.QUEUE_OVERFLOW_TOTAL.labels(policy="drop").inc()
+                    if queue.full() and overload_policy == "drop":
+                        _record_drop(state, queue.qsize())
                         continue
                     if queue.full():
                         m.QUEUE_OVERFLOW_TOTAL.labels(policy="backpressure").inc()
+                    _record_queue_depth(state, queue.qsize())
                     await queue.put(item)
-                    m.QUEUE_DEPTH.set(float(queue.qsize()))
+                    _record_queue_depth(state, queue.qsize())
             else:
                 async for e in source.stream():
+                    state.runtime.offered_events_total += 1
                     item = QueueItem(event=e, ingest_wall_ts=time.time(), on_success=_noop_async)
-                    if queue.full() and drop_on_overflow:
-                        state.runtime.dropped_events_total += 1
-                        m.DROPPED_EVENTS_TOTAL.inc()
-                        m.QUEUE_OVERFLOW_TOTAL.labels(policy="drop").inc()
+                    if queue.full() and overload_policy == "drop":
+                        _record_drop(state, queue.qsize())
                         continue
                     if queue.full():
                         m.QUEUE_OVERFLOW_TOTAL.labels(policy="backpressure").inc()
+                    _record_queue_depth(state, queue.qsize())
                     await queue.put(item)
-                    m.QUEUE_DEPTH.set(float(queue.qsize()))
+                    _record_queue_depth(state, queue.qsize())
         finally:
             stop.set()
 
@@ -592,7 +668,7 @@ async def process_source_with_backpressure(state: ServiceState, source: Any, *, 
 
             try:
                 item = await asyncio.wait_for(queue.get(), timeout=timeout)
-                m.QUEUE_DEPTH.set(float(queue.qsize()))
+                _record_queue_depth(state, queue.qsize())
                 if not batch_events:
                     flush_deadline = time.perf_counter() + (micro.flush_ms / 1000.0)
                 batch_events.append(item.event)
@@ -651,6 +727,7 @@ async def run_stream_processor(config_path: str | None = None) -> None:
 
 
 def state_view(state: ServiceState) -> dict[str, Any]:
+    lag_samples = list(state.runtime.lag_samples_seconds)
     return {
         "model_ready": bool(state.scorer.ready),
         "threshold": float(state.threshold.threshold),
@@ -661,10 +738,20 @@ def state_view(state: ServiceState) -> dict[str, Any]:
         "drift_score": float(state.drift.state.drift_score),
         "anomaly_rate_recent": float(state.threshold.anomaly_rate()),
         "queue_depth": float(m.QUEUE_DEPTH._value.get()),
+        "queue_depth_p95": float(
+            np.percentile(np.asarray(list(state.runtime.queue_depth_samples), dtype=float), 95)
+            if state.runtime.queue_depth_samples
+            else 0.0
+        ),
         "processing_lag_seconds": float(m.PROCESSING_LAG_SECONDS._value.get()),
+        "processing_lag_p95_seconds": float(
+            np.percentile(np.asarray(lag_samples, dtype=float), 95) if lag_samples else 0.0
+        ),
         "max_processing_lag_seconds": float(m.MAX_PROCESSING_LAG_SECONDS._value.get()),
-        "dropped_events_total": int(m.DROPPED_EVENTS_TOTAL._value.get()),
+        "dropped_events_total": int(state.runtime.dropped_events_total),
+        "drop_rate": float(state.runtime.dropped_events_total / max(1, state.runtime.offered_events_total)),
         "restored": bool(state.runtime.restored),
+        "restored_state": bool(state.runtime.restored),
         "restored_at_unix": state.runtime.restored_at_unix,
         "last_snapshot_unix": state.runtime.last_snapshot_unix,
     }

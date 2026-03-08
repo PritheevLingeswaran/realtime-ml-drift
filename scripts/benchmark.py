@@ -29,7 +29,12 @@ from src.monitoring.benchmarking import (  # noqa: E402
     safety_check_anomaly_rate,
 )
 from src.schemas.event_schema import Event  # noqa: E402
-from src.streaming.runner import build_state, process_event, process_events_batch  # noqa: E402
+from src.streaming.runner import (  # noqa: E402
+    build_state,
+    process_event,
+    process_events_batch,
+    state_view,
+)
 from src.utils.config import load_config  # noqa: E402
 
 
@@ -51,6 +56,9 @@ class PassResult:
     anomaly_rate: float
     anomaly_rate_denominator: int
     labels_available: bool
+    statistical_validity_passed: bool
+    statistical_validity_message: str
+    min_alerts_required: int
     alerts_during_drift: int | None
     alerts_during_non_drift: int | None
     alert_rate_drift_segment: float | None
@@ -64,10 +72,15 @@ class PassResult:
     alert_cap_breached: bool
     cpu_avg_percent: float
     cpu_p95_percent: float
+    cpu_avg_percent_normalized: float
+    cpu_p95_percent_normalized: float
     peak_rss_mb: float
+    queue_depth_p95: float
     processing_lag_p50_s: float
     processing_lag_p95_s: float
     processing_lag_max_s: float
+    dropped_events_total: int
+    drop_rate: float
     adaptation_stats: dict[str, Any]
 
 
@@ -113,12 +126,38 @@ def load_replay_events(path: Path) -> tuple[list[Event], dict[str, Any]]:
 
 def _apply_benchmark_overrides(state: Any, cfg: dict[str, Any], adaptation_enabled: bool) -> dict[str, Any]:
     bcfg = cfg.get("benchmarking", {})
+    profile_cfg = cfg.get("benchmark_profile", {})
+    profile_adapt = profile_cfg.get("adaptation", {})
 
     # Why: pass-level toggle lets us compare fixed baseline vs adapted controller
     # under identical workload.
     state.threshold.cfg.enabled = bool(adaptation_enabled)
     if adaptation_enabled and bcfg.get("target_anomaly_rate") is not None:
         state.threshold.cfg.target_anomaly_rate = float(bcfg["target_anomaly_rate"])
+    if profile_adapt.get("initial_threshold") is not None:
+        state.threshold.threshold = float(profile_adapt["initial_threshold"])
+    if profile_adapt.get("min_threshold") is not None:
+        state.threshold.cfg.min_threshold = float(profile_adapt["min_threshold"])
+    if profile_adapt.get("max_threshold") is not None:
+        state.threshold.cfg.max_threshold = float(profile_adapt["max_threshold"])
+    if profile_adapt.get("max_step") is not None:
+        state.threshold.cfg.max_step = float(profile_adapt["max_step"])
+    if profile_adapt.get("cooldown_seconds") is not None:
+        state.threshold.cfg.cooldown_seconds = int(profile_adapt["cooldown_seconds"])
+    if profile_adapt.get("min_history") is not None:
+        state.threshold.cfg.min_history = int(profile_adapt["min_history"])
+    if profile_adapt.get("history_window_size") is not None:
+        history_window_size = max(1, int(profile_adapt["history_window_size"]))
+        state.threshold.cfg.history_window_size = history_window_size
+        # Why: benchmark mode needs a broader score history so anomaly-rate control is
+        # stable across long mixed-phase replays instead of overfitting to a few seconds.
+        state.threshold._scores = deque(state.threshold._scores, maxlen=history_window_size)
+    if profile_adapt.get("adapt_during_drift") is not None:
+        state.threshold.cfg.adapt_during_drift = bool(profile_adapt["adapt_during_drift"])
+    if profile_adapt.get("rate_feedback_enabled") is not None:
+        state.threshold.cfg.rate_feedback_enabled = bool(profile_adapt["rate_feedback_enabled"])
+    if profile_adapt.get("target_tolerance_abs") is not None:
+        state.threshold.cfg.target_tolerance_abs = float(profile_adapt["target_tolerance_abs"])
 
     # Why: these are the detector knobs most likely to affect throughput/quality.
     if bcfg.get("min_samples") is not None:
@@ -137,8 +176,24 @@ def _apply_benchmark_overrides(state: Any, cfg: dict[str, Any], adaptation_enabl
         "window_size": int(state.drift.cfg.window_size),
         "evaluation_interval": int(state.drift.cfg.evaluation_interval),
         "max_alerts_per_minute": float(bcfg.get("max_alerts_per_minute", 120.0)),
+        "min_alerts_required": int(profile_cfg.get("min_alerts_required", 50)),
         "drift_scenario": drift_scenario,
+        "rate_feedback_enabled": bool(state.threshold.cfg.rate_feedback_enabled),
+        "target_tolerance_abs": float(state.threshold.cfg.target_tolerance_abs),
+        "adapt_during_drift": bool(state.threshold.cfg.adapt_during_drift),
+        "history_window_size": int(state.threshold.cfg.history_window_size),
     }
+
+
+def _statistical_validity(alerts: int, labels_available: bool, min_alerts_required: int) -> tuple[bool, str]:
+    if not labels_available:
+        return False, "INSUFFICIENT SAMPLE: drift labels unavailable."
+    if alerts < min_alerts_required:
+        return (
+            False,
+            f"INSUFFICIENT SAMPLE: alerts={alerts} is below minimum required {min_alerts_required}.",
+        )
+    return True, f"PASS: alerts={alerts} meets minimum required {min_alerts_required}."
 
 
 def run_pass(
@@ -246,6 +301,7 @@ def run_pass(
 
     runtime = max(1e-9, time.perf_counter() - start)
     sampler.stop()
+    runtime_state = state_view(state)
 
     events_per_sec = scored / runtime
     delay = compute_detection_delay(
@@ -259,6 +315,11 @@ def run_pass(
 
     alerts = compute_alert_metrics(alert_flags=alert_flags, drift_flags=drift_flags)
     resource = sampler.stats()
+    validity_passed, validity_message = _statistical_validity(
+        alerts=alerts.alerts,
+        labels_available=alerts.labels_available,
+        min_alerts_required=int(applied["min_alerts_required"]),
+    )
 
     pass_result = PassResult(
         name=pass_name,
@@ -277,6 +338,9 @@ def run_pass(
         anomaly_rate=alerts.anomaly_rate,
         anomaly_rate_denominator=alerts.anomaly_rate_denominator,
         labels_available=alerts.labels_available,
+        statistical_validity_passed=validity_passed,
+        statistical_validity_message=validity_message,
+        min_alerts_required=int(applied["min_alerts_required"]),
         alerts_during_drift=alerts.alerts_during_drift,
         alerts_during_non_drift=alerts.alerts_during_non_drift,
         alert_rate_drift_segment=alerts.alert_rate_drift_segment,
@@ -292,10 +356,15 @@ def run_pass(
         alert_cap_breached=alert_cap_breached,
         cpu_avg_percent=float(resource["cpu_avg_percent"]),
         cpu_p95_percent=float(resource["cpu_p95_percent"]),
+        cpu_avg_percent_normalized=float(resource["cpu_avg_percent_normalized"]),
+        cpu_p95_percent_normalized=float(resource["cpu_p95_percent_normalized"]),
         peak_rss_mb=float(resource["peak_rss_mb"]),
+        queue_depth_p95=float(runtime_state["queue_depth_p95"]),
         processing_lag_p50_s=percentile(lag_samples_s, 0.50),
         processing_lag_p95_s=percentile(lag_samples_s, 0.95),
         processing_lag_max_s=max(lag_samples_s) if lag_samples_s else 0.0,
+        dropped_events_total=int(runtime_state["dropped_events_total"]),
+        drop_rate=float(runtime_state["drop_rate"]),
         adaptation_stats=state.threshold.stats(),
     )
 
@@ -324,30 +393,43 @@ def asdict_pass(p: PassResult) -> dict[str, Any]:
         "alerts": {
             "count": p.alerts,
             "false_alert_count": p.false_alerts,
-            "false_alert_rate": p.false_alert_rate,
+            "false_alert_rate": p.false_alert_rate if p.statistical_validity_passed else None,
             "false_alert_definition": "false alert = alert fired when drift_tag is None (non-drift segment)",
             "labels_available": p.labels_available,
+            "scored_events": p.scored_events,
+            "anomaly_rate_denominator": p.anomaly_rate_denominator,
             "alerts_during_drift": p.alerts_during_drift,
             "alerts_during_non_drift": p.alerts_during_non_drift,
             "alert_rate_drift_segment": p.alert_rate_drift_segment,
             "alert_rate_non_drift_segment": p.alert_rate_non_drift_segment,
             "anomaly_rate": p.anomaly_rate,
-            "anomaly_rate_denominator": p.anomaly_rate_denominator,
             "avg_alerts_per_minute": p.avg_alerts_per_minute,
             "max_alerts_per_minute": p.max_alerts_per_minute,
             "alert_cap_breached": p.alert_cap_breached,
         },
         "drift_confusion": {
-            "tp": p.tp,
-            "fp": p.fp,
+            "tp": p.tp if p.statistical_validity_passed else None,
+            "fp": p.fp if p.statistical_validity_passed else None,
             "tn": p.tn,
             "fn": p.fn,
             "definition": "Confusion is computed event-wise with prediction=is_anomaly and truth=(drift_tag is not None)",
         },
+        "statistical_validity": {
+            "passed": p.statistical_validity_passed,
+            "message": p.statistical_validity_message,
+            "min_alerts_required": p.min_alerts_required,
+        },
         "resource_efficiency": {
             "cpu_avg_percent": p.cpu_avg_percent,
             "cpu_p95_percent": p.cpu_p95_percent,
+            "cpu_avg_percent_normalized": p.cpu_avg_percent_normalized,
+            "cpu_p95_percent_normalized": p.cpu_p95_percent_normalized,
             "peak_rss_mb": p.peak_rss_mb,
+        },
+        "queue": {
+            "queue_depth_p95": p.queue_depth_p95,
+            "dropped_events_total": p.dropped_events_total,
+            "drop_rate": p.drop_rate,
         },
         "processing_lag_seconds": {
             "p50": p.processing_lag_p50_s,
@@ -370,7 +452,9 @@ def render_markdown(report: dict[str, Any]) -> str:
         perf_section = f"""
 ## Performance Comparison (Before vs After Micro-Batching)
 - Before CPU avg/p95: `{perf['before']['resource_efficiency']['cpu_avg_percent']:.4f}% / {perf['before']['resource_efficiency']['cpu_p95_percent']:.4f}%`
+- Before CPU avg/p95 normalized by cores: `{perf['before']['resource_efficiency']['cpu_avg_percent_normalized']:.4f}% / {perf['before']['resource_efficiency']['cpu_p95_percent_normalized']:.4f}%`
 - After CPU avg/p95: `{perf['after']['resource_efficiency']['cpu_avg_percent']:.4f}% / {perf['after']['resource_efficiency']['cpu_p95_percent']:.4f}%`
+- After CPU avg/p95 normalized by cores: `{perf['after']['resource_efficiency']['cpu_avg_percent_normalized']:.4f}% / {perf['after']['resource_efficiency']['cpu_p95_percent_normalized']:.4f}%`
 - Before p99 pipeline latency: `{perf['before']['pipeline_latency_ms']['p99']:.4f} ms`
 - After p99 pipeline latency: `{perf['after']['pipeline_latency_ms']['p99']:.4f} ms`
 - CPU avg delta (after-before): `{perf['cpu_avg_percent_delta']:.4f}%`
@@ -401,33 +485,44 @@ def render_markdown(report: dict[str, Any]) -> str:
 {labels_note}
 
 ## Baseline Pass (adaptation disabled)
+- Statistical validity: `{base['statistical_validity']['message']}`
 - Throughput: `{base['throughput']['events_per_sec']:.4f} events/sec` (`{base['throughput']['events_per_min']:.2f} events/min`)
 - Pipeline latency (ms): p50 `{base['pipeline_latency_ms']['p50']:.4f}`, p95 `{base['pipeline_latency_ms']['p95']:.4f}`, p99 `{base['pipeline_latency_ms']['p99']:.4f}`
 - Drift detection latency: `{base['drift_detection_latency']['seconds_to_detect']}` sec, `{base['drift_detection_latency']['events_to_detect']}` events
+- Scored events / alerts / anomaly denominator: `{base['alerts']['scored_events']}` / `{base['alerts']['count']}` / `{base['alerts']['anomaly_rate_denominator']}`
 - Alerts: `{base['alerts']['count']}` (false: `{_fmt(base['alerts']['false_alert_count'], '.0f')}`; false alert rate: `{_fmt(base['alerts']['false_alert_rate'])}`)
 - Segment alerts (drift/non-drift): `{_fmt(base['alerts']['alerts_during_drift'], '.0f')}` / `{_fmt(base['alerts']['alerts_during_non_drift'], '.0f')}`
 - Segment alert rates (drift/non-drift): `{_fmt(base['alerts']['alert_rate_drift_segment'])}` / `{_fmt(base['alerts']['alert_rate_non_drift_segment'])}`
 - Drift confusion (TP/FP/TN/FN): `{_fmt(base['drift_confusion']['tp'], '.0f')}` / `{_fmt(base['drift_confusion']['fp'], '.0f')}` / `{_fmt(base['drift_confusion']['tn'], '.0f')}` / `{_fmt(base['drift_confusion']['fn'], '.0f')}`
 - Anomaly rate: `{base['alerts']['anomaly_rate']:.4f}` (denominator: `{base['alerts']['anomaly_rate_denominator']}` scored events)
 - CPU avg/p95: `{base['resource_efficiency']['cpu_avg_percent']:.4f}% / {base['resource_efficiency']['cpu_p95_percent']:.4f}%`
+- CPU avg/p95 normalized by cores: `{base['resource_efficiency']['cpu_avg_percent_normalized']:.4f}% / {base['resource_efficiency']['cpu_p95_percent_normalized']:.4f}%`
 - Peak RSS: `{base['resource_efficiency']['peak_rss_mb']:.4f} MB`
+- Queue depth p95: `{base['queue']['queue_depth_p95']:.4f}`
+- Dropped events / drop rate: `{base['queue']['dropped_events_total']}` / `{base['queue']['drop_rate']:.6f}`
 - Processing lag p50/p95/max: `{base['processing_lag_seconds']['p50']:.6f}` / `{base['processing_lag_seconds']['p95']:.6f}` / `{base['processing_lag_seconds']['max']:.6f}` sec
 
 ## Tuned Pass (adaptation enabled)
+- Statistical validity: `{tuned['statistical_validity']['message']}`
 - Throughput: `{tuned['throughput']['events_per_sec']:.4f} events/sec` (`{tuned['throughput']['events_per_min']:.2f} events/min`)
 - Pipeline latency (ms): p50 `{tuned['pipeline_latency_ms']['p50']:.4f}`, p95 `{tuned['pipeline_latency_ms']['p95']:.4f}`, p99 `{tuned['pipeline_latency_ms']['p99']:.4f}`
 - Drift detection latency: `{tuned['drift_detection_latency']['seconds_to_detect']}` sec, `{tuned['drift_detection_latency']['events_to_detect']}` events
+- Scored events / alerts / anomaly denominator: `{tuned['alerts']['scored_events']}` / `{tuned['alerts']['count']}` / `{tuned['alerts']['anomaly_rate_denominator']}`
 - Alerts: `{tuned['alerts']['count']}` (false: `{_fmt(tuned['alerts']['false_alert_count'], '.0f')}`; false alert rate: `{_fmt(tuned['alerts']['false_alert_rate'])}`)
 - Segment alerts (drift/non-drift): `{_fmt(tuned['alerts']['alerts_during_drift'], '.0f')}` / `{_fmt(tuned['alerts']['alerts_during_non_drift'], '.0f')}`
 - Segment alert rates (drift/non-drift): `{_fmt(tuned['alerts']['alert_rate_drift_segment'])}` / `{_fmt(tuned['alerts']['alert_rate_non_drift_segment'])}`
 - Drift confusion (TP/FP/TN/FN): `{_fmt(tuned['drift_confusion']['tp'], '.0f')}` / `{_fmt(tuned['drift_confusion']['fp'], '.0f')}` / `{_fmt(tuned['drift_confusion']['tn'], '.0f')}` / `{_fmt(tuned['drift_confusion']['fn'], '.0f')}`
 - Anomaly rate: `{tuned['alerts']['anomaly_rate']:.4f}` (denominator: `{tuned['alerts']['anomaly_rate_denominator']}` scored events)
 - CPU avg/p95: `{tuned['resource_efficiency']['cpu_avg_percent']:.4f}% / {tuned['resource_efficiency']['cpu_p95_percent']:.4f}%`
+- CPU avg/p95 normalized by cores: `{tuned['resource_efficiency']['cpu_avg_percent_normalized']:.4f}% / {tuned['resource_efficiency']['cpu_p95_percent_normalized']:.4f}%`
 - Peak RSS: `{tuned['resource_efficiency']['peak_rss_mb']:.4f} MB`
+- Queue depth p95: `{tuned['queue']['queue_depth_p95']:.4f}`
+- Dropped events / drop rate: `{tuned['queue']['dropped_events_total']}` / `{tuned['queue']['drop_rate']:.6f}`
 - Processing lag p50/p95/max: `{tuned['processing_lag_seconds']['p50']:.6f}` / `{tuned['processing_lag_seconds']['p95']:.6f}` / `{tuned['processing_lag_seconds']['max']:.6f}` sec
 
 ## Baseline vs Tuned
 - False positive reduction: `{_fmt(cmp_['false_positive_reduction_percent'])}%`
+- FP reduction validity: `{cmp_['false_positive_reduction_validity']}`
 - Anomaly rate change (tuned-baseline): `{cmp_['anomaly_rate_change']:.6f}`
 - Drift detection delay change seconds (tuned-baseline): `{cmp_['detection_delay_seconds_change']}`
 - Drift detection delay change events (tuned-baseline): `{cmp_['detection_delay_events_change']}`
@@ -511,8 +606,18 @@ def main() -> int:
             fp_baseline=int(baseline.false_alerts),
             fp_tuned=int(tuned.false_alerts),
         )
-        if (baseline.false_alerts is not None and tuned.false_alerts is not None)
+        if (
+            baseline.false_alerts is not None
+            and tuned.false_alerts is not None
+            and baseline.statistical_validity_passed
+            and tuned.statistical_validity_passed
+        )
         else None
+    )
+    fp_reduction_validity = (
+        "PASS"
+        if fp_reduction is not None
+        else "INSUFFICIENT SAMPLE"
     )
 
     detection_seconds_delta = None
@@ -578,6 +683,7 @@ def main() -> int:
         },
         "comparison": {
             "false_positive_reduction_percent": fp_reduction,
+            "false_positive_reduction_validity": fp_reduction_validity,
             "anomaly_rate_change": tuned.anomaly_rate - baseline.anomaly_rate,
             "detection_delay_seconds_change": detection_seconds_delta,
             "detection_delay_events_change": detection_events_delta,

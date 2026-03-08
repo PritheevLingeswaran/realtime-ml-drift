@@ -16,6 +16,10 @@ class AdaptationConfig:
     max_step: float
     cooldown_seconds: int
     min_history: int = 200
+    history_window_size: int = 2000
+    adapt_during_drift: bool = False
+    rate_feedback_enabled: bool = False
+    target_tolerance_abs: float = 0.0
 
 
 class ThresholdController:
@@ -28,10 +32,15 @@ class ThresholdController:
     - Guardrails prevent runaway automation.
     """
 
-    def __init__(self, cfg: AdaptationConfig, window_size: int = 2000) -> None:
+    def __init__(self, cfg: AdaptationConfig, window_size: int | None = None) -> None:
         self.cfg = cfg
         self.threshold = float(cfg.initial_threshold)
-        self._scores: deque[float] = deque(maxlen=window_size)
+        history_window_size = (
+            int(window_size)
+            if window_size is not None
+            else max(1, int(cfg.history_window_size))
+        )
+        self._scores: deque[float] = deque(maxlen=history_window_size)
         self._last_change_ts: float = 0.0
         self._frozen: bool = False
         self._freeze_reason: str = ""
@@ -40,6 +49,7 @@ class ThresholdController:
         self._skipped_history = 0
         self._step_limited = 0
         self._bounds_limited = 0
+        self._feedback_blocked = 0
         self._updates_applied = 0
 
     def update(self, score: float, ts: float, drift_active: bool) -> float:
@@ -52,7 +62,7 @@ class ThresholdController:
             return self.threshold
 
         # Safety: do not adapt during suspected drift.
-        if drift_active:
+        if drift_active and not self.cfg.adapt_during_drift:
             self._skipped_drift += 1
             return self.threshold
 
@@ -86,6 +96,19 @@ class ThresholdController:
             proposed = self.threshold + float(self.cfg.max_step) * (1.0 if delta > 0 else -1.0)
             self._step_limited += 1
 
+        if self.cfg.rate_feedback_enabled:
+            current_rate = self.anomaly_rate()
+            upper = float(self.cfg.target_anomaly_rate) + float(self.cfg.target_tolerance_abs)
+            lower = float(self.cfg.target_anomaly_rate) - float(self.cfg.target_tolerance_abs)
+            # Why: quantile-only updates can move the threshold the wrong way on non-stationary streams.
+            # Benchmark-mode feedback forces at least one corrective step in the direction that reduces rate error.
+            if current_rate > upper and proposed < self.threshold:
+                proposed = self.threshold + float(self.cfg.max_step)
+                self._feedback_blocked += 1
+            elif current_rate < lower and proposed > self.threshold:
+                proposed = self.threshold - float(self.cfg.max_step)
+                self._feedback_blocked += 1
+
         if proposed != self.threshold:
             self.threshold = proposed
             self._last_change_ts = ts
@@ -113,6 +136,7 @@ class ThresholdController:
             "skipped_history": self._skipped_history,
             "step_limited": self._step_limited,
             "bounds_limited": self._bounds_limited,
+            "feedback_blocked": self._feedback_blocked,
             "min_history": int(self.cfg.min_history),
         }
 

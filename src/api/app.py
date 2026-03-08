@@ -87,6 +87,8 @@ def create_app(config_path: str | None = None) -> FastAPI:
             "model_ready": bool(state.scorer.ready),
             "env": str(state.config["app"]["env"]),
             "restored": bool(state.runtime.restored),
+            "restored_state": bool(state.runtime.restored),
+            "last_snapshot_unix": state.runtime.last_snapshot_unix,
         }
 
     @app.get("/state")

@@ -278,9 +278,14 @@ class ResourceSampler:
     def stats(self) -> dict[str, float]:
         cpu = [s.cpu_percent for s in self.samples]
         rss = [s.rss_mb for s in self.samples]
+        cores = max(1, os.cpu_count() or 1)
+        cpu_avg = statistics.mean(cpu) if cpu else 0.0
+        cpu_p95 = percentile(cpu, 0.95)
         return {
-            "cpu_avg_percent": statistics.mean(cpu) if cpu else 0.0,
-            "cpu_p95_percent": percentile(cpu, 0.95),
+            "cpu_avg_percent": cpu_avg,
+            "cpu_p95_percent": cpu_p95,
+            "cpu_avg_percent_normalized": cpu_avg / cores,
+            "cpu_p95_percent_normalized": cpu_p95 / cores,
             "peak_rss_mb": max(rss) if rss else 0.0,
         }
 

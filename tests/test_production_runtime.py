@@ -4,6 +4,7 @@ import asyncio
 import time
 from pathlib import Path
 
+from src.monitoring import metrics as m
 from src.schemas.event_schema import Event
 from src.streaming.runner import build_state, process_event, process_source_with_backpressure
 from src.streaming.state_store import SnapshotStore, build_snapshot_payload
@@ -70,7 +71,7 @@ def test_backpressure_no_drops_by_default_and_lag_metrics_update(tmp_path: Path)
     state = build_state(_isolated_config(tmp_path))
     state.config["streaming"]["micro_batch"]["enabled"] = False
     state.config["streaming"]["ingestion"]["queue_max_size"] = 8
-    state.config["streaming"]["ingestion"]["drop_on_overflow"] = False
+    state.config["streaming"]["ingestion"]["overload_policy"] = "backpressure"
     state.config["streaming"]["ingestion"]["lag_circuit_breaker_seconds"] = 9999.0
     state.scorer._ready = True  # type: ignore[attr-defined]
     state.scorer.score = lambda _f: (0.2, -0.1)  # type: ignore[assignment]
@@ -83,6 +84,35 @@ def test_backpressure_no_drops_by_default_and_lag_metrics_update(tmp_path: Path)
 
     assert state.runtime.dropped_events_total == 0
     assert state.runtime.max_processing_lag_seconds > 0.0
+    assert len(state.runtime.queue_depth_samples) > 0
+
+
+def test_drop_policy_emits_metrics_and_critical_alert(tmp_path: Path) -> None:
+    state = build_state(_isolated_config(tmp_path))
+    state.config["streaming"]["micro_batch"]["enabled"] = False
+    state.config["streaming"]["ingestion"]["queue_max_size"] = 1
+    state.config["streaming"]["ingestion"]["overload_policy"] = "drop"
+    state.config["streaming"]["ingestion"]["lag_circuit_breaker_seconds"] = 9999.0
+    state.scorer._ready = True  # type: ignore[attr-defined]
+
+    def _slow_score(_f: dict[str, float]) -> tuple[float, float]:
+        time.sleep(0.003)
+        return (0.2, -0.1)
+
+    state.scorer.score = _slow_score  # type: ignore[assignment]
+    events = [_event(i, time.time() - 0.01) for i in range(120)]
+    src = _BurstSource(events)
+    drops_before = float(m.DROPPED_EVENTS_TOTAL._value.get())
+
+    with asyncio.Runner() as runner:
+        runner.run(process_source_with_backpressure(state, src, is_kafka=False))
+
+    drops_after = float(m.DROPPED_EVENTS_TOTAL._value.get())
+    assert state.runtime.dropped_events_total > 0
+    assert drops_after > drops_before
+    assert float(m.DROP_RATE._value.get()) > 0.0
+    alerts = state.alerts.list(limit=10)
+    assert any(a.severity == "critical" and a.reason == "queue_overload_drop_policy_triggered" for a in alerts)
 
 
 def test_snapshot_restore_persists_threshold_and_model_state(tmp_path: Path) -> None:

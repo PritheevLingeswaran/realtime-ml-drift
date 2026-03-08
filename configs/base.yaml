@@ -13,7 +13,7 @@ streaming:
     dedupe_cache_size: 200000
   ingestion:
     queue_max_size: 5000
-    drop_on_overflow: false
+    overload_policy: backpressure
     lag_circuit_breaker_seconds: 5.0
   micro_batch:
     # Off by default for behavior parity; enable to reduce CPU via batched scoring.

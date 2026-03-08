@@ -23,6 +23,7 @@ ALERTS_EMITTED = Counter("alerts_emitted_total", "Total alerts emitted", ["sever
 ERRORS_TOTAL = Counter("errors_total", "Total errors", ["component"])
 DUPLICATE_EVENTS_TOTAL = Counter("duplicate_events_total", "Total duplicate events skipped", ["source"])
 DROPPED_EVENTS_TOTAL = Counter("dropped_events_total", "Total events dropped due to explicit overload policy")
+DROP_RATE = Gauge("drop_rate", "Dropped events divided by offered events under explicit overload policy")
 QUEUE_OVERFLOW_TOTAL = Counter("queue_overflow_total", "Total queue overflow events", ["policy"])
 ADMIN_ACTIONS_TOTAL = Counter("admin_actions_total", "Administrative actions", ["action", "result"])
 
@@ -33,6 +34,7 @@ EVENTS_INGESTED.labels(source="api").inc(0)
 ALERTS_EMITTED.labels(severity="low").inc(0)
 ALERTS_EMITTED.labels(severity="medium").inc(0)
 ALERTS_EMITTED.labels(severity="high").inc(0)
+ALERTS_EMITTED.labels(severity="critical").inc(0)
 
 ERRORS_TOTAL.labels(component="stream").inc(0)
 ERRORS_TOTAL.labels(component="feature").inc(0)
@@ -91,6 +93,11 @@ CPU_USAGE_PERCENT = Gauge("cpu_usage", "Process CPU usage percent (best-effort)"
 MEMORY_USAGE_BYTES = Gauge("memory_usage", "Process memory usage in bytes (best-effort)")
 QUEUE_DEPTH = Gauge("queue_depth", "Current ingestion queue depth")
 PROCESSING_LAG_SECONDS = Gauge("processing_lag_seconds", "Current processing lag in seconds")
+PROCESSING_LAG_HISTOGRAM = Histogram(
+    "processing_lag_seconds_histogram",
+    "Observed processing lag in seconds from event timestamp to processing time",
+    buckets=(0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 300.0),
+)
 MAX_PROCESSING_LAG_SECONDS = Gauge("max_processing_lag_seconds", "Max processing lag seen in current process")
 
 # Kafka/Redpanda operational metrics (optional path).
@@ -101,6 +108,14 @@ COMMIT_LATENCY_SECONDS = Histogram(
     buckets=(0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5),
 )
 DLQ_COUNT = Counter("dlq_count_total", "Malformed events sent to DLQ")
+DESERIALIZE_ERRORS_TOTAL = Counter(
+    "deserialize_errors_total",
+    "Kafka/replay deserialize errors",
+    ["source"],
+)
+
+DESERIALIZE_ERRORS_TOTAL.labels(source="kafka").inc(0)
+DESERIALIZE_ERRORS_TOTAL.labels(source="replay").inc(0)
 
 _PROCESS = None
 _LAST_RESOURCE_TS = 0.0

@@ -1,0 +1,22 @@
+benchmark_profile:
+  name: measurable_alerts
+  enabled: true
+  min_alerts_required: 50
+  adaptation:
+    # Why: benchmark mode must exercise alerting/adaptation inside minutes, not hours.
+    initial_threshold: 0.9964
+    min_threshold: 0.9962
+    max_threshold: 0.9995
+    max_step: 0.0020
+    cooldown_seconds: 0
+    min_history: 2000
+    history_window_size: 50000
+    adapt_during_drift: true
+    rate_feedback_enabled: true
+    target_tolerance_abs: 0.0025
+
+benchmarking:
+  target_anomaly_rate: 0.01
+  min_samples: 200
+  window_size: 1000
+  evaluation_interval: 200

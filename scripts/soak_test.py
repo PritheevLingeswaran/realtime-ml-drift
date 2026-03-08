@@ -23,7 +23,7 @@ from src.monitoring.benchmarking import (  # noqa: E402
     read_errors_total_best_effort,
 )
 from src.schemas.event_schema import Event  # noqa: E402
-from src.streaming.runner import build_state, process_event  # noqa: E402
+from src.streaming.runner import build_state, process_event, state_view  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -109,6 +109,9 @@ def render_md(report: dict[str, Any]) -> str:
 - Events seen: `{report['events_seen']}`
 - Events processed: `{report['events_processed']}`
 - Events dropped: `{report['events_dropped']}`
+- Events not scored: `{report['events_not_scored']}`
+- Overload policy: `{report['overload_policy']}`
+- Drop rate: `{report['drop_rate']:.6f}`
 - Throughput: `{report['events_per_sec']:.6f} events/sec`
 
 ## Error Health
@@ -121,7 +124,10 @@ def render_md(report: dict[str, Any]) -> str:
 
 ## Resource Efficiency
 - CPU avg/p95: `{report['resource_efficiency']['cpu_avg_percent']:.4f}% / {report['resource_efficiency']['cpu_p95_percent']:.4f}%`
+- CPU avg/p95 normalized by cores: `{report['resource_efficiency']['cpu_avg_percent_normalized']:.4f}% / {report['resource_efficiency']['cpu_p95_percent_normalized']:.4f}%`
 - Peak RSS: `{report['resource_efficiency']['peak_rss_mb']:.4f} MB`
+- Queue depth p95: `{report['queue_depth_p95']:.4f}`
+- Processing lag p95/max: `{report['processing_lag_p95_seconds']:.6f}` / `{report['processing_lag_max_seconds']:.6f}` sec
 
 ## Reality Check
 - 100% availability in a finite soak window does not prove long-term reliability.
@@ -151,6 +157,7 @@ def main() -> int:
     internal_errors = 0
     processed = 0
     dropped = 0
+    not_scored = 0
     seen = 0
     cursor = 0
 
@@ -173,7 +180,7 @@ def main() -> int:
 
         t0 = time.perf_counter()
         try:
-            out = runner.run(process_event(state, e, source="soak"))
+            out = runner.run(process_event(state, e, source="soak", ingest_wall_ts=time.time()))
             lat_ms = (time.perf_counter() - t0) * 1000.0
             latencies_ms.append(lat_ms)
 
@@ -181,7 +188,7 @@ def main() -> int:
                 processed += 1
                 rolling_window.append(lat_ms)
             else:
-                dropped += 1
+                not_scored += 1
 
             if processed > 0 and (processed % max(1, int(args.rolling_emit_every_events))) == 0:
                 rolling_series.append(
@@ -195,7 +202,7 @@ def main() -> int:
             # Why: soak test must measure resilience, not just fast-fail.
             crashes += 1
             internal_errors += 1
-            dropped += 1
+            not_scored += 1
             m.ERRORS_TOTAL.labels(component="stream").inc()
 
             down_start = time.perf_counter()
@@ -214,6 +221,18 @@ def main() -> int:
     elapsed = max(1e-9, time.perf_counter() - start_wall)
     availability_percent = compute_availability_percent(elapsed, downtime)
     errors_total_end = read_errors_total_best_effort(internal_errors)
+    runtime_state = state_view(state)
+    overload_policy = str(
+        state.config.get("streaming", {}).get("ingestion", {}).get("overload_policy", "backpressure")
+    )
+    if not overload_policy:
+        overload_policy = (
+            "drop"
+            if bool(state.config.get("streaming", {}).get("ingestion", {}).get("drop_on_overflow", False))
+            else "backpressure"
+        )
+    dropped = int(runtime_state["dropped_events_total"])
+    drop_rate = float(runtime_state["drop_rate"])
 
     report = {
         "inputs": {
@@ -228,6 +247,9 @@ def main() -> int:
         "events_seen": seen,
         "events_processed": processed,
         "events_dropped": dropped,
+        "events_not_scored": not_scored,
+        "overload_policy": overload_policy,
+        "drop_rate": drop_rate,
         "events_per_sec": processed / elapsed,
         "crash_count": crashes,
         "restart_count": restarts,
@@ -238,6 +260,9 @@ def main() -> int:
         "errors_total_delta": max(0, errors_total_end - errors_total_start),
         "internal_exception_count": internal_errors,
         "latency": summarize_latency(latencies_ms),
+        "queue_depth_p95": float(runtime_state["queue_depth_p95"]),
+        "processing_lag_p95_seconds": float(runtime_state["processing_lag_p95_seconds"]),
+        "processing_lag_max_seconds": float(runtime_state["max_processing_lag_seconds"]),
         "rolling_latency_p95": {
             **rolling_p95_summary(rolling_series),
             "series": rolling_series,
@@ -258,6 +283,9 @@ def main() -> int:
     print(md)
     print(f"\nWrote soak Markdown report: {md_path}")
     print(f"Wrote soak JSON report: {json_path}")
+    if overload_policy != "drop" and dropped > 0:
+        print("FAIL: lossless mode recorded dropped events.")
+        return 1
     return 0
 
 

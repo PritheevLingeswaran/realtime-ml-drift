@@ -22,7 +22,7 @@
 ## Why explicit backpressure over silent drops?
 - Dropped events hide incidents and break replay/debug parity.
 - Bounded queue with blocking ingestion keeps failure mode visible (lag) and measurable.
-- Overload drops are opt-in and counted (`dropped_events_total`).
+- Overload drops are opt-in via `overload_policy=drop`, counted (`dropped_events_total`), alerted, and audit-logged.
 
 ## Why event_id idempotency at runtime?
 - Broker retries/rebalances create duplicate deliveries in at-least-once mode.
@@ -33,3 +33,8 @@
 - Restarting without state causes cold-start behavior and alert instability.
 - Persisting threshold/drift/reference/window summaries preserves operational continuity.
 - Snapshot schema versioning keeps future migrations explicit.
+
+## Why keep a benchmark-only overlay?
+- Production defaults stay conservative because false suppression is safer than runaway tuning.
+- Benchmark runs need measurable alert volume so FP/false-alert metrics have enough sample size to mean anything.
+- `configs/benchmark.yaml` relaxes only convergence guardrails needed for a timed benchmark; the 5% hard anomaly safety gate still applies.

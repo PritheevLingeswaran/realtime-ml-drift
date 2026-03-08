@@ -91,6 +91,7 @@ class KafkaEventSource:
                         obj = orjson.loads(rec.value)
                         yield Event(**obj), rec
                     except Exception:  # noqa: BLE001
+                        m.DESERIALIZE_ERRORS_TOTAL.labels(source="kafka").inc()
                         m.DLQ_COUNT.inc()
                         if self._producer is not None and self.cfg.dlq_topic:
                             await self._producer.send_and_wait(self.cfg.dlq_topic, rec.value)
