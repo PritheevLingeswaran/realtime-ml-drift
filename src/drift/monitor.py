@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
-import time
 
 from src.drift.adwin import ADWINDetector
 from src.drift.stats import (

@@ -1,16 +1,16 @@
 .PHONY: install test lint format run_api run_stream gen_stream eval run_all
 
 install:
-	pip install -r requirements.txt
+	python -m pip install -r requirements.txt
 
 test:
-	pytest -q
+	python -m pytest
 
 lint:
-	ruff check src tests scripts evaluation
+	python -m ruff check src tests scripts evaluation
 
 format:
-	ruff format .
+	python -m ruff format .
 
 gen_stream:
 	python scripts/generate_stream.py --config configs/dev.yaml --out data/raw/streams/dev_stream.jsonl

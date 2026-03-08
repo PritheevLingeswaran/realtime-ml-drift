@@ -463,20 +463,21 @@ def _finalize_scored_event(
     adapt_t0 = time.perf_counter()
     new_thr = state.threshold.update(score=score, ts=e.ts, drift_active=drift_state.drift_active)
     timings_ms["adaptation"] = (time.perf_counter() - adapt_t0) * 1000.0
-    if old_thr != float(new_thr):
-        if state.threshold.should_audit_log_change(old_thr, float(new_thr), e.ts) and _should_sample_threshold_log(state, e.event_id):
-            log_t0 = time.perf_counter()
-            # Why: threshold movements are operationally sensitive and must be auditable.
-            state.logger.info(
-                "threshold_changed",
-                audit_type="threshold_change",
-                actor="controller",
-                reason="target_anomaly_rate_control",
-                old_threshold=old_thr,
-                new_threshold=float(new_thr),
-                event_id=e.event_id,
-            )
-            timings_ms["logging_metrics"] += (time.perf_counter() - log_t0) * 1000.0
+    if old_thr != float(new_thr) and state.threshold.should_audit_log_change(
+        old_thr, float(new_thr), e.ts
+    ) and _should_sample_threshold_log(state, e.event_id):
+        log_t0 = time.perf_counter()
+        # Why: threshold movements are operationally sensitive and must be auditable.
+        state.logger.info(
+            "threshold_changed",
+            audit_type="threshold_change",
+            actor="controller",
+            reason="target_anomaly_rate_control",
+            old_threshold=old_thr,
+            new_threshold=float(new_thr),
+            event_id=e.event_id,
+        )
+        timings_ms["logging_metrics"] += (time.perf_counter() - log_t0) * 1000.0
 
     metrics_t0 = time.perf_counter()
     m.CURRENT_THRESHOLD.set(float(new_thr))

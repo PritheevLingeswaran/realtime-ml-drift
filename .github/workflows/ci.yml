@@ -2,16 +2,54 @@ name: CI
 
 on:
   push:
+    branches:
+      - "**"
   pull_request:
+    branches:
+      - "**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
+  lint-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONUNBUFFERED: "1"
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - run: ruff check src tests scripts evaluation
-      - run: pytest -q
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip wheel setuptools
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Ruff
+        run: |
+          set -euxo pipefail
+          python -m ruff check src tests scripts evaluation
+
+      - name: Pytest
+        run: |
+          set -euxo pipefail
+          python -m pytest
+
+      - name: Failure diagnostics
+        if: failure()
+        run: |
+          set -x
+          python --version
+          python -m pip --version
+          python -m pip freeze

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 
+from scripts.benchmark import evaluate_performance_gate
 from src.monitoring.benchmarking import (
     ResourceSampler,
     check_target_anomaly_tolerance,
@@ -10,7 +11,6 @@ from src.monitoring.benchmarking import (
     compute_fp_reduction_percent,
     safety_check_anomaly_rate,
 )
-from scripts.benchmark import evaluate_performance_gate
 
 
 def test_events_to_detect_logic_without_replay_sleep() -> None:
