@@ -1,39 +1,182 @@
-# realtime-ml-drift
+# Realtime ML Drift Detection System
 
-Production-grade **streaming-first** real-time ML system for online inference, drift detection, and safe threshold adaptation.
+Streaming-first machine learning system for real-time anomaly scoring, drift detection, guarded threshold adaptation, and production-style observability.
 
-This repo is intentionally opinionated:
-- **Streaming-first** (no batch assumptions)
-- **Incremental/windowed computation** (bounded state)
-- **Config-driven** behavior (no hardcoded thresholds)
-- **Deterministic replay** from JSONL streams for debugging/evaluation
-- **Safety-first automation** (guardrails; no blind retraining)
-- **Observability-first** (structured logs + Prometheus metrics)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)
+![River](https://img.shields.io/badge/River-Online%20Drift-0A7E8C)
+![Prometheus](https://img.shields.io/badge/Prometheus-Metrics-E6522C)
+![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED)
 
----
+## Problem
 
-## What this system does
+Many machine learning systems degrade after deployment because live data stops matching the training or reference distribution. In production, this creates two expensive failure modes:
 
-**Input:** live events (synthetic generator or JSONL replay)  
-**Processing:** windowed features → anomaly scoring → drift detection → guarded threshold tuning → alerts/metrics  
-**Output:** FastAPI endpoints + Prometheus metrics + JSON logs + snapshots for replay
+- real anomalies are missed because the model becomes desensitized to new behavior
+- false alerts increase because temporary shifts are mistaken for incidents
 
----
+This project solves that problem by continuously scoring streaming events, monitoring feature and prediction drift, and adapting thresholds with safety guardrails instead of blindly retraining the model. The design is relevant to fraud detection, payments monitoring, platform reliability, abuse detection, and any high-volume event stream where model quality must be monitored in real time.
 
-## Requirements
+## Architecture
 
-- Python **3.11 recommended** (3.10+ should work)
-- Git (optional, for contributing)
+The system is built as an online inference pipeline with bounded state, deterministic replay, and operational controls for safe deployment.
 
-> Note: `river` requires `numpy < 2.0`. If you hit dependency conflicts, pin `numpy==1.26.4` in `requirements.txt`.
+- `Data ingestion`: synthetic stream, JSONL replay, or Kafka source
+- `Embedding / feature pipeline`: per-entity windowed feature engineering with incremental aggregates
+- `Retrieval / model layer`: anomaly scoring using `IsolationForest` with a `ZScore` online fallback, followed by score normalization
+- `API layer`: FastAPI endpoints for scoring, alerts, health, state inspection, and metrics
+- `Evaluation layer`: offline replay evaluation, live benchmarking, threshold sweeps, soak testing, and drift-quality reporting
 
----
+Core flow:
 
-## Quickstart
+1. Events enter through a bounded ingestion path with idempotency and backpressure controls.
+2. Pydantic schemas validate input payloads.
+3. The feature pipeline updates per-entity windows and computes streaming-safe features.
+4. The scoring layer produces anomaly scores.
+5. The drift monitor evaluates current windows against a stable reference using PSI, KS, and ADWIN-based signals.
+6. A guarded threshold controller updates alert thresholds only when safety conditions allow it.
+7. Alerts, Prometheus metrics, JSON logs, and snapshots are emitted for monitoring and recovery.
 
-### 1) Install
+![Architecture Diagram](docs/architecture.png)
 
-#### macOS / Linux
+## Model / Pipeline
+
+The ML pipeline is designed for streaming operation rather than batch retraining.
+
+- `Data preprocessing`
+  - Validate incoming events with typed schemas.
+  - Deduplicate events by `event_id` to support replay safety and at-least-once ingestion.
+  - Maintain bounded queues and bounded per-entity state to avoid unbounded memory growth.
+- `Feature engineering`
+  - Build rolling entity-level features from recent transaction history.
+  - Compute incremental aggregates from a window store instead of recomputing full histories.
+  - Emit only config-enabled features for predictable runtime behavior.
+- `Model training`
+  - Train the primary anomaly scorer with `IsolationForest`.
+  - Keep a `ZScore` baseline available as a deterministic, online-friendly fallback.
+  - Treat the scoring model as stable in production and avoid automatic retraining.
+- `Inference pipeline`
+  - Ingest event
+  - Update entity window
+  - Generate features
+  - Score anomaly likelihood
+  - Normalize scores
+  - Evaluate drift on a periodic cadence
+  - Apply guarded threshold adaptation
+  - Emit alert and monitoring signals
+- `Evaluation process`
+  - Replay deterministic streams for reproducible experiments
+  - Measure alert quality, latency, throughput, CPU, memory, and drift-detection behavior
+  - Compare adaptive thresholding against fixed-threshold baselines
+
+## Evaluation Metrics
+
+The repository evaluates both model quality and production performance.
+
+- `Precision`: how many emitted alerts are correct
+- `Recall`: how many true drift events are detected
+- `MRR`: not currently reported in this project because the system is anomaly/drift detection rather than ranked retrieval
+- `Latency`: API and pipeline response time at p50, p95, and p99
+- `Throughput`: sustained requests or events processed per second
+
+Latest measured alert-quality results from repository artifacts:
+
+| Metric | Adaptive live run | Fixed baseline |
+| --- | ---: | ---: |
+| Precision | 0.571 | 0.500 |
+| Recall | 0.129 | 0.258 |
+| F1 | 0.211 | 0.340 |
+| False alert rate | 0.429 | 0.500 |
+| False alert reduction | 62.5% | 0.0% |
+
+Notes:
+
+- The adaptive configuration improved precision and reduced false alerts, but it traded off recall.
+- `MRR` is intentionally omitted from the results table because it does not apply to this problem formulation.
+- Performance metrics are reported separately below because they come from different benchmark artifacts.
+
+## Results
+
+The system demonstrates that guarded threshold adaptation can reduce noisy alerting while preserving production-grade performance characteristics.
+
+- Offline benchmark results in [`docs/benchmark_report.md`](docs/benchmark_report.md) show a `42.28%` false-positive reduction between baseline and tuned configurations.
+- The tuned benchmark pass maintained nearly identical throughput, with a performance gate result of `PASS`.
+- Live-run evaluation in `artifacts/live_run_summary.json` reported `62.5%` false-alert reduction versus a fixed-threshold baseline.
+- A 6-hour soak configuration reported `100%` availability during the recorded run window, `0` crashes, and `0` dropped events under backpressure mode.
+
+## Latency Benchmarks
+
+The repository includes both API benchmarking and stream-processing benchmarks.
+
+- `Response time`
+  - Live API run: p50 `6.37 ms`, p95 `8.05 ms`, p99 `8.96 ms`
+  - Benchmark API run: p50 `22.00 ms`, p95 `33.79 ms`, p99 `96.39 ms`
+- `Throughput`
+  - Live API evaluation summary: `779.12 RPS`
+  - Benchmark API summary: `746.85 RPS`
+  - Soak test stream processing: `851.79 events/sec`
+- `Concurrent requests`
+  - Benchmark harness supports concurrent load generation and includes a `--concurrency` flag
+  - Example production-style benchmark in the repo uses concurrency-driven API testing over sustained windows
+
+## Example Output
+
+Sample request:
+
+```bash
+curl -X POST http://127.0.0.1:8000/detect_drift \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_id": "manual_1",
+    "ts": 1730000000.0,
+    "entity_id": "acct_000001",
+    "amount": 120.0,
+    "merchant_id": "m_0001",
+    "merchant_category": "electronics",
+    "country": "US",
+    "channel": "web",
+    "device_type": "desktop"
+  }'
+```
+
+Representative response:
+
+```json
+{
+  "status": "ok",
+  "event_id": "manual_1",
+  "drift_active": false,
+  "is_anomaly": false,
+  "score": 0.1842,
+  "threshold": 0.8123
+}
+```
+
+## Demo
+
+- `Demo video`: add link or embed here
+- `Screenshots`: add API, metrics dashboard, and alert timeline screenshots here
+- `API example`: demonstrate `/score`, `/detect_drift`, and `/alerts`
+
+Suggested assets:
+
+- `docs/demo.mp4`
+- `docs/screenshots/api.png`
+- `docs/screenshots/metrics.png`
+- `docs/screenshots/alerts.png`
+
+## How to Run
+
+### Step 1: Clone repository
+
+```bash
+git clone <your-repo-url>
+cd realtime-ml-drift
+```
+
+### Step 2: Install dependencies
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -41,283 +184,65 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-#### Windows (CMD)
-```bat
-python -m venv .venv
-.venv\Scripts\activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
+### Step 3: Run application
 
-#### Windows (PowerShell)
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
+Generate a deterministic stream:
 
----
-
-### 2) Generate a deterministic stream (JSONL)
 ```bash
 python scripts/generate_stream.py --config configs/dev.yaml --out data/raw/streams/dev_stream.jsonl
 ```
 
----
+Start the API:
 
-### 3) Run API (starts background stream processor in dev)
-
-**Windows (recommended to avoid `src` import issues):**
-```bat
-set PYTHONPATH=.
-python scripts/run_api.py --config configs/dev.yaml
-```
-
-**macOS/Linux:**
 ```bash
 export PYTHONPATH=.
 python scripts/run_api.py --config configs/dev.yaml
 ```
 
-Open:
-- Health: `GET /health`
-- Metrics: `GET /metrics`
-- Alerts: `GET /alerts`
-- Score: `POST /score`
-- Predict alias: `POST /predict`
-- Drift-focused scoring: `POST /detect_drift`
+Optional checks:
 
-Quick check:
 ```bash
 curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/metrics
+curl http://127.0.0.1:8000/alerts?limit=20
 ```
 
----
+## Tech Stack
 
-### 4) Run stream-only (no API)
-```bash
-export PYTHONPATH=.
-python scripts/run_stream.py --config configs/dev.yaml
-```
+- `Python 3.11`
+- `FastAPI`
+- `Uvicorn`
+- `Pydantic`
+- `scikit-learn`
+- `River`
+- `NumPy`
+- `SciPy`
+- `Prometheus`
+- `Structlog`
+- `Docker`
+- `Kafka` support for streaming ingestion
 
----
+Note:
 
-### 5) Run evaluation (replay + compute metrics)
-```bash
-export PYTHONPATH=.
-python scripts/run_eval.py --config configs/dev.yaml
-```
+- `HuggingFace` and `FAISS / Vector DB` are not used in the current implementation.
+- The “embedding / retrieval” layer in this project is a streaming feature and scoring layer rather than vector search.
 
-This writes a summary to:
-- `docs/evaluation_results.md`
+## Failure Cases
 
----
+The system is realistic about failure modes and includes guardrails, but it is not immune to production issues.
 
-## API Endpoints
+- `False drift alarms`: temporary traffic shifts, campaigns, or seasonality can trigger alerts even when the underlying system is healthy
+- `Silent drift`: slow-moving distribution changes may degrade model quality before thresholds are crossed
+- `Adaptation hides incidents`: automatic threshold movement can suppress true anomalies if guardrails are too weak
+- `State blow-up`: sudden growth in entity cardinality can pressure memory if window and eviction settings are misconfigured
+- `Operational overload`: sustained lag or queue pressure can require freezing adaptation and prioritizing service stability
 
-- `GET /health` → service status + model readiness
-- `GET /metrics` → Prometheus metrics
-- `GET /alerts?limit=200` → recent alerts
-- `POST /score` → score a single event
-- `POST /predict` → alias for scoring endpoint
-- `POST /detect_drift` → drift-focused result (`drift_active`, `score`, `threshold`)
+## Future Work
 
-Example score request:
-```bash
-curl -X POST http://127.0.0.1:8000/score \
-  -H "Content-Type: application/json" \
-  -d '{"event_id":"manual_1","ts":1730000000.0,"entity_id":"acct_000001","amount":120.0,"merchant_id":"m_0001","merchant_category":"electronics","country":"US","channel":"web","device_type":"desktop"}'
-```
-
----
-
-## Observability
-
-Prometheus metrics include:
-- throughput: `events_ingested_total`, `events_scored_total`
-- alerts: `alerts_emitted_total`
-- errors: `errors_total`
-- drift/adaptation: `drift_active`, `current_threshold`, `anomaly_rate_recent`
-- latency histograms: `score_latency_seconds`, `feature_latency_seconds`, `drift_latency_seconds`
-- drift quality/system gauges: `drift_precision`, `drift_recall`, `cpu_usage`, `memory_usage`
-
----
-
-## Drift Pipeline (Live)
-
-Current production-style drift path is windowed and config-driven:
-- Cached reference statistics are built once after the reference window is full.
-- Current window is maintained with bounded deques.
-- Drift evaluation runs every `drift.evaluation_interval` events (not every event) to control CPU.
-- Drift score combines multiple signals:
-  - feature PSI
-  - feature KS
-  - prediction shift
-- Alerting uses quality guards:
-  - feature voting (`drift.feature_vote_fraction`)
-  - smoothing (`drift.smoothing_consecutive`)
-  - cooldown (`drift.alert_cooldown_events`)
-  - adaptive threshold (`drift.threshold_method`, `drift.threshold_k`)
-- Two alert levels are produced:
-  - warning: `drift_warning_active` (early signal)
-  - critical: `drift_active` (smoothed + cooldown guarded)
-
-Key config knobs in `configs/base.yaml`:
-```yaml
-drift:
-  window_size: 1000
-  evaluation_interval: 100
-  threshold_method: adaptive
-  threshold_k: 1.0
-  feature_vote_fraction: 0.40
-  smoothing_consecutive: 2
-  alert_cooldown_events: 300
-```
-
----
-
-## Live Benchmarking (Production-style)
-
-Important separation:
-- `scripts/evaluate_realtime_drift.py` is **offline algorithm validation** only
-- `scripts/benchmark_api.py` + `scripts/evaluate_live_run.py` are **live system benchmarking**
-
-### 1) Start service
-```bash
-export PYTHONPATH=.
-python scripts/run_api.py --config configs/dev.yaml
-```
-
-### 2) Optional: generate labeled phased stream artifact
-```bash
-python scripts/generate_stream_phases.py \
-  --config configs/benchmark_phases.yaml \
-  --events_per_second 50 \
-  --out_jsonl artifacts/live_run/generated_stream.jsonl \
-  --out_csv artifacts/live_run/generated_stream.csv
-```
-
-### 3) Run sustained live benchmark (5-15 min)
-If you launched the API in the background, pass its PID to capture CPU/memory fallback samples:
-```bash
-API_PID=<your_api_pid>
-```
-
-```bash
-python scripts/benchmark_api.py \
-  --config configs/benchmark_phases.yaml \
-  --duration_minutes 10 \
-  --concurrency 20 \
-  --service_pid $API_PID \
-  --out_dir artifacts/live_run
-```
-
-Artifacts (per run directory):
-- `requests.csv` (per-request raw log)
-- `system_metrics.csv` (resource samples from `/metrics`)
-- `benchmark_summary.json`
-- `benchmark_config_input.yaml`
-- `benchmark_config_resolved.json`
-- `prometheus_final.txt`
-
-### 4) Evaluate live run
-```bash
-python scripts/evaluate_live_run.py \
-  --request_csv artifacts/live_run/run_<timestamp>/requests.csv \
-  --resource_csv artifacts/live_run/run_<timestamp>/system_metrics.csv \
-  --out_json artifacts/live_run_summary.json
-```
-
-### 5) KPIs produced
-- sustained RPS
-- latency p50/p95/p99
-- error rate
-- CPU avg/p95
-- memory avg/p95
-- alert precision/recall/F1
-- avg/p95 detection latency from drift start to first alert
-- false alert rate
-- false alert reduction vs fixed-threshold baseline
-
-### 6) Detector Threshold Sweep (validation)
-```bash
-python scripts/sweep_drift_thresholds.py \
-  --request_csv artifacts/live_run/run_<timestamp>/requests.csv \
-  --out_json artifacts/live_run/run_<timestamp>/threshold_sweep_cv.json
-```
-
-Notes:
-- Uses only `drift_evaluated=1` rows.
-- Uses blocked cross-validation + phase-stratified holdout.
-- Objective is F1 with penalties for low precision/recall and high false-alert-rate.
-- Produces a recommended `drift` parameter block for hysteresis/voting thresholds.
-
-Example summary shape:
-```json
-{
-  "sustained_rps": 120.3,
-  "latency_p95_ms": 48.2,
-  "error_rate_percent": 0.12,
-  "cpu_avg_percent": 62.5,
-  "memory_avg_mb": 410.7,
-  "alert_precision": 0.79,
-  "alert_recall": 0.71,
-  "alert_f1": 0.75,
-  "avg_detection_latency_seconds": 9.4,
-  "false_alert_reduction_percent": 18.6
-}
-```
-
----
-
-## Reality check (mandatory)
-
-Concept drift cannot be “solved,” only **detected and managed**.
-- Drift detectors have false positives and false negatives.
-- Automatic adaptation can hide real incidents if misused.
-- Human review is required before retraining decisions.
-
-See:
-- `docs/drift_strategy.md`
-- `docs/tradeoffs.md`
-- `docs/failure_cases.md`
-- `docs/architecture.md`
-
----
-
-## Docker (optional)
-```bash
-docker-compose up --build
-```
-
-API will be at:
-- `http://127.0.0.1:8000/health`
-
----
-
-## Troubleshooting
-
-### `ModuleNotFoundError: No module named 'src'`
-You’re running scripts without project root on PYTHONPATH.
-
-Fix:
-- Windows CMD: `set PYTHONPATH=.`
-- macOS/Linux: `export PYTHONPATH=.`
-
-### Dependency conflict: `river` vs NumPy 2.x
-Pin:
-- `numpy==1.26.4`
-
-Then reinstall:
-```bash
-pip install -r requirements.txt
-```
-
-### `Input X contains infinity ...`
-This usually comes from `inf` features (e.g., time-since-last on first event). Ensure model input sanitization is in place in `src/models/scorer.py`.
-
----
-
-## Repo map
-See `docs/architecture.md` for component diagram and data flow.
+- Add a real architecture diagram to [`docs/architecture.png`](docs/architecture.png)
+- Add dashboard screenshots and a short demo video
+- Expand live evaluation with longer soak tests and multi-node deployment scenarios
+- Improve recall without losing the precision gains from adaptive thresholding
+- Add richer drift labeling and incident review workflows
+- Support automated experiment tracking for benchmark and threshold-sweep runs
+- Add container-first deployment documentation with Kubernetes examples
