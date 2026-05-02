@@ -18,3 +18,4 @@ class AlertMetrics:
     def f1(self) -> float:
         p, r = self.precision(), self.recall()
         return 2 * p * r / max(1e-9, (p + r))
+
