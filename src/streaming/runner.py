@@ -817,6 +817,9 @@ def state_view(state: ServiceState) -> dict[str, Any]:
             else 0.0
         ),
         "processing_lag_seconds": float(m.PROCESSING_LAG_SECONDS._value.get()),
+        "processing_lag_p50_seconds": float(
+            np.percentile(np.asarray(lag_samples, dtype=float), 50) if lag_samples else 0.0
+        ),
         "processing_lag_p95_seconds": float(
             np.percentile(np.asarray(lag_samples, dtype=float), 95) if lag_samples else 0.0
         ),

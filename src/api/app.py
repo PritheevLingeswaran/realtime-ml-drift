@@ -7,9 +7,11 @@ from collections import defaultdict, deque
 
 import uvicorn
 from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from starlette.responses import Response
+from starlette.responses import FileResponse, Response
 
 from src.monitoring import metrics as m
 from src.schemas.event_schema import Event
@@ -47,6 +49,15 @@ def create_app(config_path: str | None = None) -> FastAPI:
         title="realtime-ml-drift",
         version="0.1.0",
         default_response_class=ORJSONResponse,
+    )
+
+    # CORS middleware for frontend dashboard
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     app.state.service = state  # type: ignore[attr-defined]
@@ -184,6 +195,15 @@ def create_app(config_path: str | None = None) -> FastAPI:
     @app.get("/metrics")
     async def metrics() -> Response:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    # Serve frontend dashboard
+    frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend")
+    if os.path.isdir(frontend_dir):
+        @app.get("/")
+        async def dashboard() -> FileResponse:
+            return FileResponse(os.path.join(frontend_dir, "index.html"))
+
+        app.mount("/static", StaticFiles(directory=frontend_dir), name="frontend")
 
     return app
 

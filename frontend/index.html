@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DriftGuard — Real-Time ML Drift Detection Dashboard</title>
+  <meta name="description" content="Real-time ML model drift detection, anomaly scoring, and production monitoring dashboard">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-brand">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+      </div>
+      DriftGuard
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active">Overview</button>
+      <button class="nav-tab">Drift Analysis</button>
+      <button class="nav-tab">Alerts</button>
+      <button class="nav-tab">System</button>
+    </div>
+
+    <div class="nav-right">
+      <div class="nav-status">
+        <div class="status-dot" id="systemStatusDot"></div>
+        <span id="systemStatusText">Connecting…</span>
+      </div>
+      <div class="live-badge">LIVE</div>
+      <span class="panel-badge" id="envBadge" style="background:var(--cyan-dim);color:var(--cyan);">dev</span>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- HERO METRICS -->
+    <section class="hero-grid">
+      <div class="metric-card">
+        <div class="metric-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Anomaly Rate
+        </div>
+        <div class="metric-value cyan" id="metricScore">0.0000</div>
+        <div class="metric-sub">Current event anomaly rate <span class="tag tag-stable">LIVE</span></div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Current Threshold
+        </div>
+        <div class="metric-value magenta" id="metricThreshold">0.0000</div>
+        <div class="metric-sub">Adaptive score threshold</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Drift Status
+        </div>
+        <div id="driftStatus" style="margin:8px 0">
+          <span class="drift-badge stable">✓ STABLE</span>
+        </div>
+        <div class="metric-sub">Drift score: <span id="driftScoreVal" style="font-family:'Space Grotesk';font-weight:600">0.000</span></div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Processing Lag
+        </div>
+        <div class="metric-value amber" id="metricLag">0.0ms</div>
+        <div class="metric-sub">Event-to-score latency</div>
+      </div>
+    </section>
+
+    <!-- MAIN CONTENT -->
+    <section class="content-grid">
+      <!-- CHART -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📊 Live Signal Monitor</div>
+          <span class="panel-badge" style="background:var(--cyan-dim);color:var(--cyan);">Real-time</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="driftChart"></canvas>
+        </div>
+        <div class="score-form">
+          <button class="score-btn" id="scoreBtn" onclick="sendTestEvent()">Send Test Event</button>
+          <div id="scoreResult" style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text-secondary);margin-left:8px;font-family:'Space Grotesk'"></div>
+        </div>
+      </div>
+
+      <!-- ALERTS -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🔔 Alert Timeline</div>
+          <span class="panel-badge" id="alertCount" style="background:var(--magenta-dim);color:var(--magenta);">0</span>
+        </div>
+        <div class="alerts-list" id="alertsList">
+          <div class="empty-state">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+            <span>No alerts — system healthy</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BOTTOM GRID -->
+    <section class="bottom-grid">
+      <!-- LATENCY -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">⚡ Latency Distribution</div>
+        </div>
+        <div class="latency-row">
+          <span class="latency-label">p50</span>
+          <div class="latency-bar-bg"><div class="latency-bar-fill" id="lagP50" style="width:0%"></div></div>
+          <span class="latency-val" id="lagP50Val">— ms</span>
+        </div>
+        <div class="latency-row">
+          <span class="latency-label">p95</span>
+          <div class="latency-bar-bg"><div class="latency-bar-fill" id="lagP95" style="width:0%"></div></div>
+          <span class="latency-val" id="lagP95Val">— ms</span>
+        </div>
+        <div class="latency-row">
+          <span class="latency-label">Max</span>
+          <div class="latency-bar-bg"><div class="latency-bar-fill" id="lagP99" style="width:0%;background:linear-gradient(90deg, var(--magenta), rgba(255,45,149,0.6))"></div></div>
+          <span class="latency-val" id="lagP99Val">— ms</span>
+        </div>
+      </div>
+
+      <!-- SYSTEM -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🖥 System Health</div>
+        </div>
+        <table class="feature-table">
+          <tbody>
+            <tr><td style="color:var(--text-muted)">Queue Depth</td><td id="queueDepth">0</td></tr>
+            <tr><td style="color:var(--text-muted)">Queue p95</td><td id="queueP95">0</td></tr>
+            <tr><td style="color:var(--text-muted)">Dropped Events</td><td id="droppedEvents">0</td></tr>
+            <tr><td style="color:var(--text-muted)">Duplicate Events</td><td id="duplicateEvents">0</td></tr>
+            <tr><td style="color:var(--text-muted)">Adaptation</td><td><span id="adaptFrozen" class="score-pill ok">ACTIVE</span></td></tr>
+            <tr><td style="color:var(--text-muted)">Freeze Reason</td><td id="freezeReason" style="font-size:0.72rem">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PIPELINE -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🔧 Pipeline Config</div>
+        </div>
+        <table class="feature-table">
+          <tbody>
+            <tr><td style="color:var(--text-muted)">Model</td><td><span class="score-pill ok">IsolationForest</span></td></tr>
+            <tr><td style="color:var(--text-muted)">Drift Method</td><td>PSI + KS + ADWIN</td></tr>
+            <tr><td style="color:var(--text-muted)">Threshold</td><td>Adaptive</td></tr>
+            <tr><td style="color:var(--text-muted)">Features</td><td>8 streaming</td></tr>
+            <tr><td style="color:var(--text-muted)">Ingestion</td><td>Backpressure</td></tr>
+            <tr><td style="color:var(--text-muted)">Dedup</td><td>Hash-ring 200K</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- STATUS BAR -->
+  <footer class="status-bar">
+    <div class="status-item">Last snapshot: <span class="val" id="lastSnapshot">—</span></div>
+    <div class="status-item">Model: <span class="val" id="modelReady">—</span></div>
+    <div class="status-item">Session: <span class="val" id="uptime">0m 0s</span></div>
+    <div class="status-item">Drop rate: <span class="val" id="dropRate">0.00%</span></div>
+    <div class="status-item">
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:blink 1.5s ease-in-out infinite"></div>
+      <span class="val">Streaming</span>
+    </div>
+  </footer>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
