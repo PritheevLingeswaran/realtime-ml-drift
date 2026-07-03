@@ -4,8 +4,11 @@ benchmark_profile:
   min_alerts_required: 50
   adaptation:
     # Why: benchmark mode must exercise alerting/adaptation inside minutes, not hours.
-    initial_threshold: 0.9964
-    min_threshold: 0.9962
+    # initial_threshold is calibrated to the score distribution the pipeline actually
+    # produces over the fixed benchmark event budget (~1.3% baseline anomaly rate),
+    # leaving margin below the 0.02 safety ceiling checked by the profile test.
+    initial_threshold: 0.9965
+    min_threshold: 0.9960
     max_threshold: 0.9995
     max_step: 0.0020
     cooldown_seconds: 0
