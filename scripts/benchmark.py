@@ -291,6 +291,7 @@ def run_pass(
     micro_batch_size: int = 64,
     target_events_per_sec: float | None = None,
     labels_available: bool = True,
+    max_events: int | None = None,
 ) -> tuple[PassResult, dict[str, Any]]:
     # Why: benchmark must start from clean state for reproducible comparisons.
     state = build_state(config_path, allow_restore=False)
@@ -328,6 +329,13 @@ def run_pass(
 
     with asyncio.Runner() as runner:
         while (time.perf_counter() - start) < float(duration_sec):
+            # Why: a fixed event budget makes a pass reproducible across machines.
+            # Scores are non-stationary as the model calibrates, so a wall-clock
+            # window yields a different distribution on fast vs slow hosts. Bounding
+            # by events processed removes that machine-dependence (duration_sec then
+            # acts only as a safety cap against a hang).
+            if max_events is not None and event_cursor >= max_events:
+                break
             if use_micro_batch:
                 batch: list[Event] = []
                 for _ in range(max(1, micro_batch_size)):
