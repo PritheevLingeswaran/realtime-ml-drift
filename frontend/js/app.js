@@ -9,11 +9,60 @@ const state = {
   maxHistory: 60,
   startTime: Date.now(),
   eventsProcessed: 0,
+  displayed: {}, // last-rendered numeric values for smooth counting
 };
 
 // ===== DOM HELPERS =====
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
+
+// Smoothly animate a numeric text node from its previous value to the next.
+function animateValue(id, to, { decimals = 4, suffix = '', duration = 500 } = {}) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const from = state.displayed[id] ?? to;
+  state.displayed[id] = to;
+  if (from === to) { el.textContent = to.toFixed(decimals) + suffix; return; }
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const val = from + (to - from) * eased;
+    el.textContent = val.toFixed(decimals) + suffix;
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// Render a compact sparkline from a numeric series into a container of <i> bars.
+function renderSpark(id, series, count = 22) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const data = series.slice(-count);
+  const max = Math.max(...data, 1e-9);
+  if (el.children.length !== count) {
+    el.innerHTML = Array.from({ length: count }, () => '<i></i>').join('');
+  }
+  const bars = el.children;
+  const offset = count - data.length;
+  for (let i = 0; i < count; i++) {
+    const v = i < offset ? 0 : data[i - offset];
+    bars[i].style.height = Math.max(6, (v / max) * 100) + '%';
+  }
+}
+
+// Drive the radial drift gauge (0..~1.5 mapped onto the arc, colour by state).
+const GAUGE_CIRC = 515; // 2·π·82 ≈ 515
+function updateGauge(driftScore, driftActive, driftWarning) {
+  const arc = document.getElementById('gaugeArc');
+  if (arc) {
+    const pct = Math.min(1, Math.max(0, driftScore / 1.2));
+    arc.style.strokeDashoffset = GAUGE_CIRC * (1 - pct);
+    const color = driftActive ? 'var(--magenta)' : driftWarning ? 'var(--amber)' : 'var(--cyan)';
+    arc.style.filter = `drop-shadow(0 0 10px ${driftActive ? 'var(--magenta-glow)' : 'var(--cyan-glow)'})`;
+  }
+  animateValue('gaugeValue', driftScore, { decimals: 3, duration: 700 });
+}
 
 function formatTime(unix) {
   if (!unix) return '—';
@@ -176,12 +225,21 @@ async function pollState() {
   if (!d) return;
   state.sysState = d;
 
-  // Hero metrics
+  // Hero metrics (animated counters)
   const score = d.anomaly_rate || 0;
-  $('#metricScore').textContent = score.toFixed(4);
-  $('#metricThreshold').textContent = (d.threshold || 0).toFixed(4);
+  animateValue('metricScore', score, { decimals: 4 });
+  animateValue('metricThreshold', d.threshold || 0, { decimals: 4 });
+  animateValue('metricAnomalyRecent', d.anomaly_rate_recent ?? score, { decimals: 4 });
 
-  // Drift status
+  // Adaptation state tile
+  const adaptTile = $('#metricAdapt');
+  if (adaptTile) {
+    const frozen = d.adaptation_frozen;
+    adaptTile.textContent = frozen ? 'FROZEN' : 'ACTIVE';
+    adaptTile.className = 'metric-value ' + (frozen ? 'amber' : 'emerald');
+  }
+
+  // Drift status + radial gauge
   const driftEl = $('#driftStatus');
   if (d.drift_active) {
     driftEl.innerHTML = '<span class="drift-badge active">⚠ DRIFT ACTIVE</span>';
@@ -190,13 +248,14 @@ async function pollState() {
   } else {
     driftEl.innerHTML = '<span class="drift-badge stable">✓ STABLE</span>';
   }
+  updateGauge(d.drift_score || 0, d.drift_active, d.drift_warning_active);
 
   // Lag
-  const lagMs = ((d.processing_lag_seconds || 0) * 1000).toFixed(1);
+  const lagMs = ((d.processing_lag_seconds || 0) * 1000);
   const lagP50Ms = ((d.processing_lag_p50_seconds ?? d.processing_lag_seconds ?? 0) * 1000).toFixed(1);
   const lagP95Ms = ((d.processing_lag_p95_seconds || 0) * 1000).toFixed(1);
   const maxLagMs = ((d.max_processing_lag_seconds || 0) * 1000).toFixed(1);
-  $('#metricLag').textContent = lagMs + 'ms';
+  animateValue('metricLag', lagMs, { decimals: 1, suffix: 'ms' });
 
   // Latency bars
   updateLatencyBar('lagP50', lagP50Ms, 50);
@@ -223,9 +282,12 @@ async function pollState() {
   const ds = d.drift_score || 0;
   $('#driftScoreVal').textContent = ds.toFixed(3);
 
-  // Push to chart
+  // Push to chart + sparklines
   pushHistory(score, d.threshold || 0, ds);
   updateChart();
+  renderSpark('sparkScore', state.history.scores);
+  renderSpark('sparkThreshold', state.history.thresholds);
+  renderSpark('sparkLag', state.history.driftScores);
 
   // Bottom bar
   $('#lastSnapshot').textContent = d.last_snapshot_unix ? timeAgo(d.last_snapshot_unix) : '—';
