@@ -51,10 +51,16 @@ def create_app(config_path: str | None = None) -> FastAPI:
         default_response_class=ORJSONResponse,
     )
 
-    # CORS middleware for frontend dashboard
+    # CORS for the frontend dashboard. Defaults to "*" for same-origin/dev
+    # convenience; set CORS_ALLOWED_ORIGINS (comma-separated) to lock this down
+    # to a deployed frontend origin, e.g. https://your-app.vercel.app
+    cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "*")
+    cors_origins = (
+        ["*"] if cors_origins_env.strip() == "*" else [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+    )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

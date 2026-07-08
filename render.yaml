@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: realtime-ml-drift-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/run_api.py --config configs/prod.yaml
+    envVars:
+      - key: PYTHONPATH
+        value: .
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # Required: set to a strong random value. Gates POST /admin/* routes.
+      - key: RTML_ADMIN_API_KEY
+        sync: false
+      # Lock down to your deployed frontend origin once you have it, e.g.
+      # https://your-app.vercel.app (comma-separate multiple origins).
+      - key: CORS_ALLOWED_ORIGINS
+        value: "*"
+    healthCheckPath: /health

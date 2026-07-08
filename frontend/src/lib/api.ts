@@ -1,8 +1,9 @@
 import type { Alert, EventInput, Health, ScoreResult, ServiceState } from "./types";
 
-// Same-origin in production (FastAPI serves this bundle); in `vite dev` the
-// dev server proxies these paths to the backend on :8000 (see vite.config.ts).
-const BASE = "";
+// Same-origin when FastAPI serves this bundle, or when `vite dev` proxies to
+// :8000 (see vite.config.ts). Set VITE_API_BASE_URL (e.g. on Vercel) to point
+// a standalone deployment of this frontend at a remote backend origin.
+const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 class ApiError extends Error {
   status: number;

@@ -1,13 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// The FastAPI backend serves the built dashboard: index.html at "/" and every
-// hashed asset under the "/static" mount (see src/api/app.py). Setting base to
-// "/static/" makes the production bundle reference assets at /static/assets/*,
-// which the mount resolves to frontend/dist/. During `vite dev` we serve from
-// root and proxy the API to the running FastAPI instance on :8000.
+// Two ways this bundle gets served:
+// 1. Embedded in the FastAPI backend: index.html at "/", hashed assets under
+//    the "/static" mount (see src/api/app.py) -> base must be "/static/".
+// 2. Standalone on Vercel (or any static host) at the site root -> base "/".
+//    Vercel sets VERCEL=1 in the build environment, which we use to switch.
+// During `vite dev` we serve from root and proxy the API to the local FastAPI
+// instance on :8000.
 export default defineConfig(({ command }) => ({
-  base: command === "build" ? "/static/" : "/",
+  base: command === "build" && !process.env.VERCEL ? "/static/" : "/",
   plugins: [react()],
   build: {
     outDir: "dist",
