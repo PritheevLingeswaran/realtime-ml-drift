@@ -21,6 +21,16 @@ data/processed/**
 *.log
 *.tmp
 
+# Generated benchmark artifacts (keep one sample run + the loose configs as reference)
+artifacts/
+!artifacts/live_run/
+artifacts/live_run/*
+!artifacts/live_run/api_bench.yaml
+!artifacts/live_run/benchmark_phases_smoke.yaml
+!artifacts/live_run/run_20260307_172755/
+!artifacts/live_run/run_20260307_172755/**
+drift_metrics.json
+
 # OS
 .DS_Store
 Thumbs.db

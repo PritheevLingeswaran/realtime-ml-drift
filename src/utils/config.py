@@ -73,7 +73,9 @@ def load_config(config_path: str | None) -> AppConfig:
 
     cfg.setdefault("api", {})
     cfg["api"]["host"] = os.environ.get("API_HOST", cfg["api"].get("host", "0.0.0.0"))
-    port = os.environ.get("API_PORT")
+    # PORT is the de facto convention on Render/Heroku/Railway; API_PORT takes
+    # precedence if both are set, for explicit local/Docker overrides.
+    port = os.environ.get("API_PORT") or os.environ.get("PORT")
     cfg["api"]["port"] = int(port) if port else int(cfg["api"].get("port", 8000))
 
     return AppConfig(raw=cfg)
