@@ -10,6 +10,12 @@ services:
         value: .
       - key: PYTHONUNBUFFERED
         value: "1"
+      # Pin the Python version: without this, Render defaults to a newer
+      # Python for which numpy==1.26.4 has no prebuilt wheel, so pip falls
+      # back to building it from source -- which fails because Render's
+      # build image has no C compiler. 3.11.11 matches the Dockerfile and CI.
+      - key: PYTHON_VERSION
+        value: "3.11.11"
       # Required: set to a strong random value. Gates POST /admin/* routes.
       - key: RTML_ADMIN_API_KEY
         sync: false
