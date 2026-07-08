@@ -196,14 +196,30 @@ def create_app(config_path: str | None = None) -> FastAPI:
     async def metrics() -> Response:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
-    # Serve frontend dashboard
-    frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend")
-    if os.path.isdir(frontend_dir):
-        @app.get("/")
-        async def dashboard() -> FileResponse:
-            return FileResponse(os.path.join(frontend_dir, "index.html"))
+    # Serve the built frontend dashboard (Vite production build in frontend/dist).
+    # The bundle is generated with base "/static/", so index.html references its
+    # hashed assets under the "/static" mount below. Rebuild with `npm run build`
+    # in frontend/ after changing UI source.
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    frontend_dist = os.path.join(repo_root, "frontend", "dist")
+    index_file = os.path.join(frontend_dist, "index.html")
 
-        app.mount("/static", StaticFiles(directory=frontend_dir), name="frontend")
+    # Mount the hashed build assets when the build is present.
+    if os.path.isdir(frontend_dist):
+        app.mount("/static", StaticFiles(directory=frontend_dist), name="frontend")
+
+    # Register the dashboard route unconditionally and resolve the index file
+    # per-request, so a server started before the build existed (or from an
+    # unexpected working directory) still responds usefully instead of a bare
+    # 404 for "/". Rebuild the UI with `npm run build` in frontend/.
+    @app.get("/")
+    async def dashboard() -> Response:
+        if os.path.isfile(index_file):
+            return FileResponse(index_file)
+        return ORJSONResponse(
+            {"detail": "dashboard build not found — run `npm run build` in frontend/"},
+            status_code=503,
+        )
 
     return app
 

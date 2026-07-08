@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-ink-950 text-fg font-sans antialiased;
+    background-image:
+      radial-gradient(80% 55% at 15% -10%, rgba(77, 214, 196, 0.06), transparent 60%),
+      radial-gradient(60% 45% at 100% 0%, rgba(91, 155, 213, 0.05), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: rgba(77, 214, 196, 0.28);
+  }
+
+  /* Fine engineering-grid backdrop */
+  #root::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(148, 163, 199, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 199, 0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 100% 80% at 50% 0%, #000 30%, transparent 90%);
+  }
+}
+
+@layer components {
+  .panel {
+    @apply relative rounded-xl border border-line bg-ink-850/70 shadow-panel backdrop-blur-sm;
+  }
+  .panel-hairline::before {
+    content: "";
+    @apply absolute inset-x-6 top-0 h-px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  }
+  .kbd {
+    @apply font-mono text-2xs uppercase tracking-widest text-fg-faint;
+  }
+  .num {
+    @apply font-mono tabular-nums;
+  }
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 199, 0.18) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 199, 0.18);
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
